@@ -69,3 +69,7 @@ export default function App() {
     </div>
   );
 }
+
+import Transactions from "./pages/Transactions";
+
+<Route path="/transactions" element={<Transactions />} />
