@@ -15,3 +15,17 @@ export default function App() {
     </Routes>
   )
 }
+
+import { useEffect } from "react";
+import { startMitraGPS } from "./modules/gpsTrackerMitra";
+
+export default function App() {
+  useEffect(() => {
+    // Misal setelah login
+    const mitraId = "mitra001";
+    const mitraName = "Budi Mitra";
+    startMitraGPS(mitraId, mitraName);
+  }, []);
+
+  return <div>Halo Mitra 👋, GPS sedang aktif...</div>;
+}
