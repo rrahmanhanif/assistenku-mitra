@@ -1,23 +1,22 @@
-<script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-analytics.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
+// firebase.js (untuk Assistenku-Mitra)
 
-  // Your web app's Firebase configuration
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-  const firebaseConfig = {
-    apiKey: "AIzaSyBSL87qkuwSQU8aXvLuu24nV7jUoX2mOSA",
-    authDomain: "assistenku-8ef85.firebaseapp.com",
-    projectId: "assistenku-8ef85",
-    storageBucket: "assistenku-8ef85.firebasestorage.app",
-    messagingSenderId: "320243806907",
-    appId: "1:320243806907:web:778e5ec329ca84f1ee2f9e",
-    measurementId: "G-X1FV92N8JJ"
-  };
+import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
 
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-</script>
+const firebaseConfig = {
+  apiKey: "AIzaSyAMrnOnJIWWs8zWUMDoYYs-95xo-LAVBbc",
+  authDomain: "assistenku-mitra.firebaseapp.com",
+  projectId: "assistenku-mitra",
+  storageBucket: "assistenku-mitra.firebasestorage.app",
+  messagingSenderId: "84136573544",
+  appId: "1:84136573544:web:c9b1a401e741799fbd59dd",
+  measurementId: "G-4LY2FQLGK1"
+};
+
+// Init Firebase
+const app = initializeApp(firebaseConfig);
+
+// Export Auth supaya bisa dipakai login/daftar
+export const auth = getAuth(app);
+
+export default app;
