@@ -1,48 +1,137 @@
-import React, { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabaseClient'
-import Header from '../components/Header'
-import DashboardCard from '../components/DashboardCard'
-import NotificationCard from '../components/NotificationCard'
+import { useEffect, useState } from "react";
+import { supabase } from "../supabaseClient";
 
 export default function Dashboard() {
-  const [customer, setCustomer] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [mitra, setMitra] = useState(null);
+  const [orders, setOrders] = useState([]);
+  const [onDuty, setOnDuty] = useState(false);
+
+  // Ambil session
+  const token = localStorage.getItem("mitra_session");
+
+  // 1. Ambil profil mitra dari Supabase
+  const loadMitra = async () => {
+    const { data, error } = await supabase
+      .from("mitra")
+      .select("*")
+      .eq("access_token", token)
+      .single();
+
+    if (data) {
+      setMitra(data);
+      setOnDuty(data.on_duty);
+    }
+  };
+
+  // 2. Realtime listener untuk order masuk
+  const listenOrders = async () => {
+    supabase
+      .channel("orders")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "orders" },
+        (payload) => {
+          const order = payload.new;
+
+          // hanya order sesuai layanan mitra
+          if (order.layanan === mitra?.layanan) {
+            setOrders((prev) => [order, ...prev]);
+            new Audio("/notif.mp3").play();
+          }
+        }
+      )
+      .subscribe();
+  };
+
+  // 3. Update status On/Off Duty
+  const toggleDuty = async () => {
+    const newStatus = !onDuty;
+    setOnDuty(newStatus);
+
+    await supabase
+      .from("mitra")
+      .update({ on_duty: newStatus })
+      .eq("uid", mitra.uid);
+  };
+
+  // 4. Terima order
+  const terimaOrder = async (id) => {
+    await supabase.from("orders").update({ status: "diterima", mitra_id: mitra.uid }).eq("id", id);
+
+    alert("Order diterima");
+  };
+
+  // 5. Tolak order
+  const tolakOrder = async (id) => {
+    await supabase.from("orders").update({ status: "ditolak" }).eq("id", id);
+
+    setOrders((prev) => prev.filter((o) => o.id !== id));
+  };
 
   useEffect(() => {
-    fetchCustomer()
-  }, [])
+    loadMitra();
+  }, []);
 
-  const fetchCustomer = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      window.location.href = '/login'
-      return
-    }
-    const { data } = await supabase.from('customers').select('*').eq('email', user.email).single()
-    setCustomer(data)
-    setLoading(false)
-  }
+  useEffect(() => {
+    if (mitra) listenOrders();
+  }, [mitra]);
 
-  if (loading) return <div className="text-center mt-20">Memuat...</div>
+  if (!mitra) return <div className="p-5">Memuat data...</div>;
 
   return (
-    <div>
-      <Header name={customer?.name} />
-      <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <DashboardCard title="Saldo" value={`Rp ${customer?.balance || 0}`} />
-        <DashboardCard title="Pesanan Aktif" value={customer?.active_orders || 0} />
-        <DashboardCard title="Notifikasi" value={customer?.notifications?.length || 0} />
+    <div className="p-5">
+      <h2 className="text-2xl font-bold text-blue-600">Dashboard Mitra</h2>
+
+      {/* Status Online / Offline */}
+      <div className="mt-4 p-4 bg-white shadow rounded-lg flex justify-between items-center">
+        <div>
+          <p className="text-lg font-semibold">{mitra.nama}</p>
+          <p className="text-gray-600">Layanan: {mitra.layanan}</p>
+        </div>
+
+        <button
+          onClick={toggleDuty}
+          className={`px-4 py-2 rounded text-white ${
+            onDuty ? "bg-green-600" : "bg-gray-500"
+          }`}
+        >
+          {onDuty ? "Online" : "Offline"}
+        </button>
       </div>
-      <div className="p-6">
-        <h3 className="text-xl font-semibold mb-3 text-blue-700">Notifikasi Terbaru</h3>
-        {customer?.notifications?.length > 0 ? (
-          customer.notifications.map((note, idx) => (
-            <NotificationCard key={idx} text={note} />
-          ))
+
+      {/* Pesanan masuk */}
+      <div className="mt-6">
+        <h3 className="text-xl font-semibold mb-3">Pesanan Masuk</h3>
+
+        {orders.length === 0 ? (
+          <p className="text-gray-500">Belum ada pesanan masuk</p>
         ) : (
-          <p className="text-gray-500">Tidak ada notifikasi.</p>
+          orders.map((o) => (
+            <div key={o.id} className="p-4 bg-white shadow rounded-lg mb-3">
+              <p><b>Pemesan:</b> {o.nama_customer}</p>
+              <p><b>Alamat:</b> {o.alamat}</p>
+              <p><b>Catatan:</b> {o.catatan}</p>
+              <p><b>Layanan:</b> {o.layanan}</p>
+
+              <div className="flex gap-3 mt-3">
+                <button
+                  onClick={() => terimaOrder(o.id)}
+                  className="bg-green-600 text-white px-3 py-1 rounded"
+                >
+                  Terima
+                </button>
+
+                <button
+                  onClick={() => tolakOrder(o.id)}
+                  className="bg-red-600 text-white px-3 py-1 rounded"
+                >
+                  Tolak
+                </button>
+              </div>
+            </div>
+          ))
         )}
       </div>
     </div>
-  )
+  );
 }
