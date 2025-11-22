@@ -1,19 +1,36 @@
 import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/Login'
+import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Profile from './pages/Profile'
-import Register from './pages/Register'   // nanti kita buat
 
 export default function App() {
+
+  // Ambil token login Mitra
   const isLoggedIn = localStorage.getItem('mitra_session')
 
   return (
     <Routes>
-      <Route path="/" element={isLoggedIn ? <Dashboard /> : <Navigate to="/login" />} />
+
+      {/* Dashboard (halaman utama) */}
+      <Route
+        path="/"
+        element={isLoggedIn ? <Dashboard /> : <Navigate to="/login" />}
+      />
+
+      {/* Login */}
       <Route path="/login" element={<Login />} />
+
+      {/* Register */}
       <Route path="/register" element={<Register />} />
-      <Route path="/profile" element={isLoggedIn ? <Profile /> : <Navigate to="/login" />} />
+
+      {/* Profil mitra */}
+      <Route
+        path="/profile"
+        element={isLoggedIn ? <Profile /> : <Navigate to="/login" />}
+      />
+
     </Routes>
   )
 }
