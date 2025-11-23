@@ -6,11 +6,11 @@ import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Profile from './pages/Profile'
 import Wallet from './pages/Wallet'
-import Withdraw from './pages/Withdraw'  // <-- DITAMBAHKAN
+import Withdraw from './pages/Withdraw'
+import OrderProcess from './pages/OrderProcess'   // <-- WAJIB
 
 export default function App() {
 
-  // Ambil token login Mitra
   const isLoggedIn = localStorage.getItem('mitra_session')
 
   return (
@@ -38,6 +38,12 @@ export default function App() {
       <Route
         path="/withdraw"
         element={isLoggedIn ? <Withdraw /> : <Navigate to="/login" />}
+      />
+
+      {/* Proses Order */}
+      <Route
+        path="/order/:id"
+        element={isLoggedIn ? <OrderProcess /> : <Navigate to="/login" />}
       />
 
       {/* Profil */}
