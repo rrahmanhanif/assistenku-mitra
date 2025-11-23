@@ -6,12 +6,13 @@ export default function Dashboard() {
   const [orders, setOrders] = useState([]);
   const [onDuty, setOnDuty] = useState(false);
 
-  // Ambil session
   const token = localStorage.getItem("mitra_session");
 
-  // 1. Ambil profil mitra dari Supabase
+  // =============================
+  // 1. Ambil data profil mitra
+  // =============================
   const loadMitra = async () => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("mitra")
       .select("*")
       .eq("access_token", token)
@@ -23,27 +24,31 @@ export default function Dashboard() {
     }
   };
 
-  // 2. Realtime listener untuk order masuk
-  const listenOrders = async () => {
+  // =============================
+  // 2. Listener pesanan masuk (realtime)
+  // =============================
+  const listenOrders = () => {
     supabase
-      .channel("orders")
+      .channel("orders-channel")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "orders" },
         (payload) => {
           const order = payload.new;
 
-          // hanya order sesuai layanan mitra
+          // Hanya pesanan sesuai layanan mitra
           if (order.layanan === mitra?.layanan) {
-            setOrders((prev) => [order, ...prev]);
             new Audio("/notif.mp3").play();
+            setOrders((prev) => [order, ...prev]);
           }
         }
       )
       .subscribe();
   };
 
+  // =============================
   // 3. Update status On/Off Duty
+  // =============================
   const toggleDuty = async () => {
     const newStatus = !onDuty;
     setOnDuty(newStatus);
@@ -51,23 +56,37 @@ export default function Dashboard() {
     await supabase
       .from("mitra")
       .update({ on_duty: newStatus })
-      .eq("uid", mitra.uid);
+      .eq("id", mitra.id);
   };
 
-  // 4. Terima order
-  const terimaOrder = async (id) => {
-    await supabase.from("orders").update({ status: "diterima", mitra_id: mitra.uid }).eq("id", id);
+  // =============================
+  // 4. Terima Order
+  // =============================
+  const terimaOrder = async (orderId) => {
+    await supabase
+      .from("orders")
+      .update({ status: "diterima", mitra_id: mitra.id })
+      .eq("id", orderId);
 
-    alert("Order diterima");
+    alert("Pesanan diterima!");
+    setOrders((prev) => prev.filter((o) => o.id !== orderId));
   };
 
-  // 5. Tolak order
-  const tolakOrder = async (id) => {
-    await supabase.from("orders").update({ status: "ditolak" }).eq("id", id);
+  // =============================
+  // 5. Tolak Order
+  // =============================
+  const tolakOrder = async (orderId) => {
+    await supabase
+      .from("orders")
+      .update({ status: "ditolak" })
+      .eq("id", orderId);
 
-    setOrders((prev) => prev.filter((o) => o.id !== id));
+    setOrders((prev) => prev.filter((o) => o.id !== orderId));
   };
 
+  // =============================
+  // Lifecycle Hooks
+  // =============================
   useEffect(() => {
     loadMitra();
   }, []);
@@ -78,12 +97,17 @@ export default function Dashboard() {
 
   if (!mitra) return <div className="p-5">Memuat data...</div>;
 
+  // =============================
+  // Render UI Dashboard
+  // =============================
   return (
     <div className="p-5">
-      <h2 className="text-2xl font-bold text-blue-600">Dashboard Mitra</h2>
+      <h2 className="text-2xl font-bold text-blue-600">
+        Dashboard Mitra
+      </h2>
 
       {/* Status Online / Offline */}
-      <div className="mt-4 p-4 bg-white shadow rounded-lg flex justify-between items-center">
+      <div className="mt-4 p-4 bg-white shadow rounded-lg flex justify-between">
         <div>
           <p className="text-lg font-semibold">{mitra.nama}</p>
           <p className="text-gray-600">Layanan: {mitra.layanan}</p>
@@ -99,7 +123,7 @@ export default function Dashboard() {
         </button>
       </div>
 
-      {/* Pesanan masuk */}
+      {/* Pesanan Masuk */}
       <div className="mt-6">
         <h3 className="text-xl font-semibold mb-3">Pesanan Masuk</h3>
 
@@ -108,10 +132,11 @@ export default function Dashboard() {
         ) : (
           orders.map((o) => (
             <div key={o.id} className="p-4 bg-white shadow rounded-lg mb-3">
-              <p><b>Pemesan:</b> {o.nama_customer}</p>
-              <p><b>Alamat:</b> {o.alamat}</p>
-              <p><b>Catatan:</b> {o.catatan}</p>
+              <p><b>Pemesan:</b> {o.customer_nama}</p>
+              <p><b>Dari:</b> {o.alamat}</p>
+              <p><b>Tujuan:</b> {o.tujuan}</p>
               <p><b>Layanan:</b> {o.layanan}</p>
+              <p><b>Catatan:</b> {o.catatan}</p>
 
               <div className="flex gap-3 mt-3">
                 <button
