@@ -1,20 +1,22 @@
 import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
+
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Profile from './pages/Profile'
-import Wallet from './pages/Wallet'   // <-- TAMBAH INI
+import Wallet from './pages/Wallet'
+import Withdraw from './pages/Withdraw'   // <-- TAMBAH INI
 
 export default function App() {
-
-  // Ambil token login Mitra
+  
+  // Cek apakah mitra sudah login
   const isLoggedIn = localStorage.getItem('mitra_session')
 
   return (
     <Routes>
 
-      {/* Dashboard (halaman utama) */}
+      {/* Dashboard */}
       <Route
         path="/"
         element={isLoggedIn ? <Dashboard /> : <Navigate to="/login" />}
@@ -26,13 +28,19 @@ export default function App() {
       {/* Register */}
       <Route path="/register" element={<Register />} />
 
-      {/* Dompet */}
+      {/* Dompet Mitra */}
       <Route
         path="/wallet"
         element={isLoggedIn ? <Wallet /> : <Navigate to="/login" />}
       />
 
-      {/* Profil mitra */}
+      {/* Withdraw */}
+      <Route
+        path="/withdraw"
+        element={isLoggedIn ? <Withdraw /> : <Navigate to="/login" />}
+      />
+
+      {/* Profil */}
       <Route
         path="/profile"
         element={isLoggedIn ? <Profile /> : <Navigate to="/login" />}
