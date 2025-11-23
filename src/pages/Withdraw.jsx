@@ -42,7 +42,6 @@ export default function Withdraw() {
     setLoading(true);
 
     const jumlahInt = Number(jumlah);
-
     const biayaGateway = 2500; // biaya admin
     const totalPotong = jumlahInt + biayaGateway;
 
@@ -62,20 +61,18 @@ export default function Withdraw() {
     const { data: session } = await supabase.auth.getUser(token);
     const uid = session.user.id;
 
-    // Simpan ke database sebagai penarikan
-    const { error } = await supabase.from("wallet_transactions").insert([
+    // Simpan ke tabel withdraw_requests untuk diproses Admin
+    const { error } = await supabase.from("withdraw_requests").insert([
       {
         mitra_id: uid,
-        tipe: "penarikan",
         jumlah: jumlahInt,
-        keterangan: `Penarikan saldo (Biaya Admin Rp ${biayaGateway.toLocaleString(
-          "id-ID"
-        )})`,
+        biaya_admin: biayaGateway,
+        status: "menunggu",
       },
     ]);
 
     if (error) {
-      alert("Gagal melakukan penarikan.");
+      alert("Gagal mengirim permintaan penarikan.");
       setLoading(false);
       return;
     }
