@@ -6,11 +6,15 @@ export default function OrderProcess() {
   const { id } = useParams();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Ambil UID mitra dari localStorage
   const mitra_id = localStorage.getItem("mitra_uid");
 
-  // Ambil data pesanan
+  // =============================
+  // 1. Ambil data pesanan
+  // =============================
   const loadOrder = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("orders")
       .select("*")
       .eq("id", id)
@@ -20,47 +24,71 @@ export default function OrderProcess() {
     setLoading(false);
   };
 
-  // Mulai perjalanan
-  const startTrip = async () => {
+  // =============================
+  // 2. Update status: diterima → menjemput
+  // =============================
+  const mulaiJemput = async () => {
+    await supabase
+      .from("orders")
+      .update({ status: "menjemput" })
+      .eq("id", id);
+
+    loadOrder();
+  };
+
+  // =============================
+  // 3. Update status: menjemput → sedang_jalan
+  // =============================
+  const mulaiPerjalanan = async () => {
     await supabase
       .from("orders")
       .update({ status: "sedang_jalan" })
       .eq("id", id);
 
-    alert("Perjalanan dimulai");
     loadOrder();
   };
 
-  // Selesaikan pesanan
-  const finishTrip = async () => {
-    await supabase
-      .from("orders")
-      .update({ status: "selesai" })
-      .eq("id", id);
+  // =============================
+  // ⭐ 4. Selesaikan pesanan + tambah saldo
+  // =============================
+  const selesaiPesanan = async () => {
+    // Hitung pendapatan mitra 75%
+    const pendapatan = Number(order.harga) * 0.75;
 
-    // Tambah pemasukan ke dompet (pendapatan 75%)
-    const pendapatan = order.harga * 0.75;
-
+    // Masukkan pendapatan mitra ke wallet
     await supabase.from("wallet_transactions").insert([
       {
         mitra_id: mitra_id,
         tipe: "pemasukan",
         jumlah: pendapatan,
-        keterangan: `Pendapatan Order #${id}`,
+        keterangan: `Pendapatan Order #${order.id}`,
       },
     ]);
 
-    alert("Pesanan selesai! Saldo bertambah.");
+    // Update status order selesai
+    await supabase
+      .from("orders")
+      .update({ status: "selesai" })
+      .eq("id", id);
+
+    alert("Pesanan selesai! Pendapatan sudah masuk ke saldo.");
+
     window.location.href = "/wallet";
   };
 
+  // =============================
+  // Load awal
+  // =============================
   useEffect(() => {
     loadOrder();
   }, []);
 
   if (loading) return <div className="p-5">Memuat pesanan...</div>;
-  if (!order) return <div className="p-5">Pesanan tidak ditemukan</div>;
+  if (!order) return <div className="p-5">Pesanan tidak ditemukan.</div>;
 
+  // =============================
+  // UI
+  // =============================
   return (
     <div className="p-5">
       <h1 className="text-2xl font-bold text-blue-600 mb-4">
@@ -83,11 +111,23 @@ export default function OrderProcess() {
         </p>
       </div>
 
-      {/* Tombol aksi */}
+      {/* =============================
+          TOMBOL AKSI SESUAI STATUS
+         ============================= */}
+
       {order.status === "diterima" && (
         <button
-          onClick={startTrip}
-          className="bg-green-600 text-white w-full py-3 rounded-lg"
+          onClick={mulaiJemput}
+          className="bg-orange-600 text-white w-full py-3 rounded-lg"
+        >
+          Mulai Jemput
+        </button>
+      )}
+
+      {order.status === "menjemput" && (
+        <button
+          onClick={mulaiPerjalanan}
+          className="bg-blue-600 text-white w-full py-3 rounded-lg"
         >
           Mulai Perjalanan
         </button>
@@ -95,12 +135,23 @@ export default function OrderProcess() {
 
       {order.status === "sedang_jalan" && (
         <button
-          onClick={finishTrip}
-          className="bg-blue-600 text-white w-full py-3 rounded-lg"
+          onClick={selesaiPesanan}
+          className="bg-green-600 text-white w-full py-3 rounded-lg"
         >
           Selesaikan Pesanan
         </button>
       )}
+
+      {/* GOOGLE MAPS */}
+      <a
+        href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+          order.lokasi_jemput
+        )}`}
+        target="_blank"
+        className="block bg-gray-700 text-white w-full py-3 rounded-lg text-center mt-4"
+      >
+        Buka Google Maps
+      </a>
     </div>
   );
 }
