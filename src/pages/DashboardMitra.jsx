@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabaseClient";
+import { supabase } from "../supabaseClient";
+
+// ======================================
+//  ICON / AUDIO
+// ======================================
+const notifSound = new Audio("/notif.mp3");
 
 export default function DashboardMitra() {
   const [mitra, setMitra] = useState(null);
@@ -8,87 +13,105 @@ export default function DashboardMitra() {
 
   const token = localStorage.getItem("mitra_session");
 
-  // =============================
-  // 1. Ambil data profil mitra
-  // =============================
+  // ======================================
+  // 1. Ambil data MITRA berdasarkan TOKEN
+  // ======================================
   const loadMitra = async () => {
-    const { data } = await supabase
+    if (!token) return;
+
+    const { data, error } = await supabase
       .from("mitra")
       .select("*")
       .eq("access_token", token)
       .single();
 
-    if (data) {
-      setMitra(data);
-      setOnDuty(data.on_duty);
+    if (error) {
+      console.log("Gagal ambil data mitra:", error);
+      return;
     }
+
+    setMitra(data);
+    setOnDuty(data.on_duty);
   };
 
-  // =============================
-  // 2. GPS Tracking Realtime
-  // =============================
+  // ======================================
+  // 2. GPS Realtime 5 Detik
+  // ======================================
   const startGpsTracking = () => {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) {
+      console.warn("GPS tidak tersedia");
+      return;
+    }
 
-    const watchId = navigator.geolocation.watchPosition(
-      async (pos) => {
-        if (!onDuty || !mitra) return;
+    const interval = setInterval(() => {
+      if (!onDuty || !mitra) return;
 
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
 
-        await supabase
-          .from("mitra")
-          .update({ lat, lng })
-          .eq("id", mitra.id);
-      },
-      (err) => console.log("GPS Error:", err),
-      { enableHighAccuracy: true }
-    );
+          await supabase
+            .from("mitra")
+            .update({ lat: lat, lng: lon })
+            .eq("id", mitra.id);
+        },
+        () => {
+          console.warn("GPS ditolak");
+        }
+      );
+    }, 5000);
 
-    return () => navigator.geolocation.clearWatch(watchId);
+    return () => clearInterval(interval);
   };
 
-  // =============================
-  // 3. Listener pesanan realtime
-  // =============================
+  // ======================================
+  // 3. Listener Pesanan Realtime
+  // ======================================
   const listenOrders = () => {
-    const channel = supabase
+    return supabase
       .channel("orders-channel")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "orders" },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "orders",
+        },
         (payload) => {
           const order = payload.new;
 
+          // Filter: hanya pesanan sesuai layanan mitra
           if (order.layanan === mitra?.layanan) {
-            new Audio("/notif.mp3").play();
+            notifSound.play();
             setOrders((prev) => [order, ...prev]);
           }
         }
       )
       .subscribe();
-
-    return () => supabase.removeChannel(channel);
   };
 
-  // =============================
-  // 4. Toggle Online ↔ Offline
-  // =============================
+  // ======================================
+  // 4. Online / Offline
+  // ======================================
   const toggleDuty = async () => {
     const newStatus = !onDuty;
     setOnDuty(newStatus);
 
-    await supabase
-      .from("mitra")
-      .update({ on_duty: newStatus })
-      .eq("id", mitra.id);
+    if (mitra) {
+      await supabase
+        .from("mitra")
+        .update({ on_duty: newStatus })
+        .eq("id", mitra.id);
+    }
   };
 
-  // =============================
-  // 5. Terima Order → Redirect
-  // =============================
+  // ======================================
+  // 5. Terima Order → Auto Redirect
+  // ======================================
   const terimaOrder = async (orderId) => {
+    if (!mitra) return;
+
     await supabase
       .from("orders")
       .update({
@@ -100,9 +123,9 @@ export default function DashboardMitra() {
     window.location.href = `/order/${orderId}`;
   };
 
-  // =============================
+  // ======================================
   // 6. Tolak order
-  // =============================
+  // ======================================
   const tolakOrder = async (orderId) => {
     await supabase
       .from("orders")
@@ -112,31 +135,37 @@ export default function DashboardMitra() {
     setOrders((prev) => prev.filter((o) => o.id !== orderId));
   };
 
-  // =============================
+  // ======================================
   // Lifecycle
-  // =============================
+  // ======================================
   useEffect(() => {
     loadMitra();
   }, []);
 
   useEffect(() => {
-    if (mitra) return listenOrders();
+    if (mitra) {
+      const channel = listenOrders();
+      return () => supabase.removeChannel(channel);
+    }
   }, [mitra]);
 
   useEffect(() => {
-    if (mitra) return startGpsTracking();
+    const stop = startGpsTracking();
+    return stop;
   }, [mitra, onDuty]);
 
-  if (!mitra) return <div className="p-5">Memuat data...</div>;
-
-  // =============================
+  // ======================================
   // UI
-  // =============================
+  // ======================================
+  if (!mitra) {
+    return <div className="p-5">Memuat data mitra...</div>;
+  }
+
   return (
     <div className="p-5">
       <h2 className="text-2xl font-bold text-blue-600">Dashboard Mitra</h2>
 
-      {/* ONLINE / OFFLINE */}
+      {/* Status Online / Offline */}
       <div className="mt-4 p-4 bg-white shadow rounded-lg flex justify-between">
         <div>
           <p className="text-lg font-semibold">{mitra.nama}</p>
@@ -146,37 +175,26 @@ export default function DashboardMitra() {
         <button
           onClick={toggleDuty}
           className={`px-4 py-2 rounded text-white ${
-            onDuty ? "bg-green-600" : "bg-gray-500"
+            onDuty ? "bg-green-600" : "bg-gray-600"
           }`}
         >
           {onDuty ? "Online" : "Offline"}
         </button>
       </div>
 
-      {/* PESANAN MASUK */}
+      {/* Pesanan Masuk */}
       <div className="mt-6">
         <h3 className="text-xl font-semibold mb-3">Pesanan Masuk</h3>
 
         {orders.length === 0 ? (
-          <p className="text-gray-500">Belum ada pesanan masuk</p>
+          <p className="text-gray-500">Belum ada pesanan</p>
         ) : (
           orders.map((o) => (
             <div key={o.id} className="p-4 bg-white shadow rounded-lg mb-3">
-              <p>
-                <b>Pemesan:</b> {o.customer_nama}
-              </p>
-              <p>
-                <b>Dari:</b> {o.alamat}
-              </p>
-              <p>
-                <b>Tujuan:</b> {o.tujuan}
-              </p>
-              <p>
-                <b>Layanan:</b> {o.layanan}
-              </p>
-              <p>
-                <b>Catatan:</b> {o.catatan}
-              </p>
+              <p><b>Pemesan:</b> {o.customer_nama}</p>
+              <p><b>Dari:</b> {o.alamat}</p>
+              <p><b>Tujuan:</b> {o.tujuan}</p>
+              <p><b>Layanan:</b> {o.layanan}</p>
 
               <div className="flex gap-3 mt-3">
                 <button
