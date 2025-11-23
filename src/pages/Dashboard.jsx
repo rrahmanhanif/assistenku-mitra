@@ -25,7 +25,7 @@ export default function Dashboard() {
   };
 
   // =============================
-  // 2. Listener pesanan masuk (Realtime)
+  // 2. Listener pesanan masuk (realtime)
   // =============================
   const listenOrders = () => {
     supabase
@@ -36,8 +36,7 @@ export default function Dashboard() {
         (payload) => {
           const order = payload.new;
 
-          // Hanya tampilkan order sesuai layanan & mitra sedang ON DUTY
-          if (order.layanan === mitra?.layanan && onDuty) {
+          if (order.layanan === mitra?.layanan) {
             new Audio("/notif.mp3").play();
             setOrders((prev) => [order, ...prev]);
           }
@@ -47,7 +46,7 @@ export default function Dashboard() {
   };
 
   // =============================
-  // 3. Update status Online/Offline
+  // 3. Update on/off duty
   // =============================
   const toggleDuty = async () => {
     const newStatus = !onDuty;
@@ -60,7 +59,7 @@ export default function Dashboard() {
   };
 
   // =============================
-  // 4. Terima Order
+  // ⭐ 4. Terima Order → Auto Redirect
   // =============================
   const terimaOrder = async (orderId) => {
     await supabase
@@ -71,8 +70,8 @@ export default function Dashboard() {
       })
       .eq("id", orderId);
 
-    alert("Pesanan diterima!");
-    setOrders((prev) => prev.filter((o) => o.id !== orderId));
+    // AUTO pindah ke halaman PROSES ORDER
+    window.location.href = `/order/${orderId}`;
   };
 
   // =============================
@@ -81,14 +80,14 @@ export default function Dashboard() {
   const tolakOrder = async (orderId) => {
     await supabase
       .from("orders")
-      .update({ status: "dibatalkan" })
+      .update({ status: "ditolak" })
       .eq("id", orderId);
 
     setOrders((prev) => prev.filter((o) => o.id !== orderId));
   };
 
   // =============================
-  // Lifecycle Hooks
+  // Lifecycle
   // =============================
   useEffect(() => {
     loadMitra();
@@ -96,18 +95,20 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (mitra) listenOrders();
-  }, [mitra, onDuty]); // ikut berubah kalau on/off duty
+  }, [mitra]);
 
   if (!mitra) return <div className="p-5">Memuat data...</div>;
 
   // =============================
-  // Render UI Dashboard
+  // Render UI
   // =============================
   return (
     <div className="p-5">
-      <h2 className="text-2xl font-bold text-blue-600">Dashboard Mitra</h2>
+      <h2 className="text-2xl font-bold text-blue-600">
+        Dashboard Mitra
+      </h2>
 
-      {/* Status Online / Offline */}
+      {/* Status On/Off */}
       <div className="mt-4 p-4 bg-white shadow rounded-lg flex justify-between">
         <div>
           <p className="text-lg font-semibold">{mitra.nama}</p>
@@ -133,11 +134,11 @@ export default function Dashboard() {
         ) : (
           orders.map((o) => (
             <div key={o.id} className="p-4 bg-white shadow rounded-lg mb-3">
+              <p><b>Pemesan:</b> {o.customer_nama}</p>
+              <p><b>Dari:</b> {o.alamat}</p>
+              <p><b>Tujuan:</b> {o.tujuan}</p>
               <p><b>Layanan:</b> {o.layanan}</p>
-              <p><b>Lokasi Jemput:</b> {o.lokasi_jemput}</p>
-              <p><b>Tujuan:</b> {o.lokasi_tujuan}</p>
-              <p><b>Catatan:</b> {o.catatan || "-"}</p>
-              <p><b>Harga:</b> Rp {Number(o.harga).toLocaleString("id-ID")}</p>
+              <p><b>Catatan:</b> {o.catatan}</p>
 
               <div className="flex gap-3 mt-3">
                 <button
