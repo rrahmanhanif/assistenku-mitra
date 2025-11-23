@@ -6,11 +6,11 @@ import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Profile from './pages/Profile'
 import Wallet from './pages/Wallet'
-import Withdraw from './pages/Withdraw'   // <-- TAMBAH INI
+import Withdraw from './pages/Withdraw'  // <-- DITAMBAHKAN
 
 export default function App() {
-  
-  // Cek apakah mitra sudah login
+
+  // Ambil token login Mitra
   const isLoggedIn = localStorage.getItem('mitra_session')
 
   return (
@@ -28,7 +28,7 @@ export default function App() {
       {/* Register */}
       <Route path="/register" element={<Register />} />
 
-      {/* Dompet Mitra */}
+      {/* Dompet */}
       <Route
         path="/wallet"
         element={isLoggedIn ? <Wallet /> : <Navigate to="/login" />}
