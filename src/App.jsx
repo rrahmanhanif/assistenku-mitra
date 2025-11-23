@@ -1,10 +1,10 @@
 import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Profile from './pages/Profile'
+import Wallet from './pages/Wallet'   // <-- TAMBAH INI
 
 export default function App() {
 
@@ -25,6 +25,12 @@ export default function App() {
 
       {/* Register */}
       <Route path="/register" element={<Register />} />
+
+      {/* Dompet */}
+      <Route
+        path="/wallet"
+        element={isLoggedIn ? <Wallet /> : <Navigate to="/login" />}
+      />
 
       {/* Profil mitra */}
       <Route
