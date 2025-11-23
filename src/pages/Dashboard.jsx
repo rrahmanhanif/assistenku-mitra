@@ -25,7 +25,30 @@ export default function Dashboard() {
   };
 
   // =============================
-  // 2. Listener pesanan masuk (realtime)
+  // 2. GPS Tracking (tiap 5 detik)
+  // =============================
+  const startGpsTracking = () => {
+    if (!navigator.geolocation) return;
+
+    const interval = setInterval(() => {
+      if (!onDuty || !mitra) return;
+
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+
+        await supabase
+          .from("mitra")
+          .update({ latitude: lat, longitude: lon })
+          .eq("id", mitra.id);
+      });
+    }, 5000);
+
+    return () => clearInterval(interval);
+  };
+
+  // =============================
+  // 3. Listener pesanan realtime
   // =============================
   const listenOrders = () => {
     supabase
@@ -46,7 +69,7 @@ export default function Dashboard() {
   };
 
   // =============================
-  // 3. Update on/off duty
+  // 4. Toggle Online ↔ Offline
   // =============================
   const toggleDuty = async () => {
     const newStatus = !onDuty;
@@ -59,7 +82,7 @@ export default function Dashboard() {
   };
 
   // =============================
-  // ⭐ 4. Terima Order → Auto Redirect
+  // ⭐ 5. Terima Order → Auto Redirect
   // =============================
   const terimaOrder = async (orderId) => {
     await supabase
@@ -70,12 +93,12 @@ export default function Dashboard() {
       })
       .eq("id", orderId);
 
-    // AUTO pindah ke halaman PROSES ORDER
+    // Auto pindah ke halaman proses order
     window.location.href = `/order/${orderId}`;
   };
 
   // =============================
-  // 5. Tolak Order
+  // 6. Tolak order
   // =============================
   const tolakOrder = async (orderId) => {
     await supabase
@@ -97,10 +120,15 @@ export default function Dashboard() {
     if (mitra) listenOrders();
   }, [mitra]);
 
+  useEffect(() => {
+    const stop = startGpsTracking();
+    return stop;
+  }, [mitra, onDuty]);
+
   if (!mitra) return <div className="p-5">Memuat data...</div>;
 
   // =============================
-  // Render UI
+  // UI
   // =============================
   return (
     <div className="p-5">
@@ -108,7 +136,7 @@ export default function Dashboard() {
         Dashboard Mitra
       </h2>
 
-      {/* Status On/Off */}
+      {/* ONLINE / OFFLINE */}
       <div className="mt-4 p-4 bg-white shadow rounded-lg flex justify-between">
         <div>
           <p className="text-lg font-semibold">{mitra.nama}</p>
@@ -125,7 +153,7 @@ export default function Dashboard() {
         </button>
       </div>
 
-      {/* Pesanan Masuk */}
+      {/* PESANAN MASUK */}
       <div className="mt-6">
         <h3 className="text-xl font-semibold mb-3">Pesanan Masuk</h3>
 
