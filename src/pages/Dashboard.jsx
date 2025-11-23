@@ -25,7 +25,7 @@ export default function Dashboard() {
   };
 
   // =============================
-  // 2. Listener pesanan masuk (realtime)
+  // 2. Listener pesanan masuk (Realtime)
   // =============================
   const listenOrders = () => {
     supabase
@@ -36,8 +36,8 @@ export default function Dashboard() {
         (payload) => {
           const order = payload.new;
 
-          // Hanya pesanan sesuai layanan mitra
-          if (order.layanan === mitra?.layanan) {
+          // Hanya tampilkan order sesuai layanan & mitra sedang ON DUTY
+          if (order.layanan === mitra?.layanan && onDuty) {
             new Audio("/notif.mp3").play();
             setOrders((prev) => [order, ...prev]);
           }
@@ -47,7 +47,7 @@ export default function Dashboard() {
   };
 
   // =============================
-  // 3. Update status On/Off Duty
+  // 3. Update status Online/Offline
   // =============================
   const toggleDuty = async () => {
     const newStatus = !onDuty;
@@ -65,7 +65,10 @@ export default function Dashboard() {
   const terimaOrder = async (orderId) => {
     await supabase
       .from("orders")
-      .update({ status: "diterima", mitra_id: mitra.id })
+      .update({
+        status: "diterima",
+        mitra_id: mitra.id,
+      })
       .eq("id", orderId);
 
     alert("Pesanan diterima!");
@@ -78,7 +81,7 @@ export default function Dashboard() {
   const tolakOrder = async (orderId) => {
     await supabase
       .from("orders")
-      .update({ status: "ditolak" })
+      .update({ status: "dibatalkan" })
       .eq("id", orderId);
 
     setOrders((prev) => prev.filter((o) => o.id !== orderId));
@@ -93,7 +96,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (mitra) listenOrders();
-  }, [mitra]);
+  }, [mitra, onDuty]); // ikut berubah kalau on/off duty
 
   if (!mitra) return <div className="p-5">Memuat data...</div>;
 
@@ -102,9 +105,7 @@ export default function Dashboard() {
   // =============================
   return (
     <div className="p-5">
-      <h2 className="text-2xl font-bold text-blue-600">
-        Dashboard Mitra
-      </h2>
+      <h2 className="text-2xl font-bold text-blue-600">Dashboard Mitra</h2>
 
       {/* Status Online / Offline */}
       <div className="mt-4 p-4 bg-white shadow rounded-lg flex justify-between">
@@ -132,11 +133,11 @@ export default function Dashboard() {
         ) : (
           orders.map((o) => (
             <div key={o.id} className="p-4 bg-white shadow rounded-lg mb-3">
-              <p><b>Pemesan:</b> {o.customer_nama}</p>
-              <p><b>Dari:</b> {o.alamat}</p>
-              <p><b>Tujuan:</b> {o.tujuan}</p>
               <p><b>Layanan:</b> {o.layanan}</p>
-              <p><b>Catatan:</b> {o.catatan}</p>
+              <p><b>Lokasi Jemput:</b> {o.lokasi_jemput}</p>
+              <p><b>Tujuan:</b> {o.lokasi_tujuan}</p>
+              <p><b>Catatan:</b> {o.catatan || "-"}</p>
+              <p><b>Harga:</b> Rp {Number(o.harga).toLocaleString("id-ID")}</p>
 
               <div className="flex gap-3 mt-3">
                 <button
