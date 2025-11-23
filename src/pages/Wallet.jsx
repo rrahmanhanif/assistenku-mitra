@@ -4,22 +4,38 @@ import { supabase } from "../lib/supabaseClient";
 export default function Wallet() {
   const [transaksi, setTransaksi] = useState([]);
   const [saldo, setSaldo] = useState(0);
-  const mitra_id = localStorage.getItem("mitra_uid");
+  const [loading, setLoading] = useState(true);
+
+  // Ambil session token
+  const token = localStorage.getItem("mitra_session");
 
   useEffect(() => {
-    if (!mitra_id) return;
-    fetchTransaksi();
+    if (!token) return;
+
+    const loadUser = async () => {
+      const { data: sessionData } = await supabase.auth.getUser(token);
+
+      if (sessionData?.user?.id) {
+        const uid = sessionData.user.id;
+        fetchTransaksi(uid);
+      }
+    };
+
+    loadUser();
   }, []);
 
-  const fetchTransaksi = async () => {
+  const fetchTransaksi = async (uid) => {
+    setLoading(true);
+
     const { data, error } = await supabase
       .from("wallet_transactions")
       .select("*")
-      .eq("mitra_id", mitra_id)
+      .eq("mitra_id", uid)
       .order("created_at", { ascending: false });
 
     if (error) {
       console.log(error);
+      setLoading(false);
       return;
     }
 
@@ -35,6 +51,7 @@ export default function Wallet() {
       .reduce((s, x) => s + Number(x.jumlah), 0);
 
     setSaldo(totalMasuk - totalKeluar);
+    setLoading(false);
   };
 
   return (
@@ -52,37 +69,37 @@ export default function Wallet() {
       {/* RIWAYAT */}
       <h2 className="text-xl font-semibold mb-3">Riwayat Transaksi</h2>
 
-      <div className="bg-white rounded-xl shadow divide-y">
-        {transaksi.length === 0 && (
-          <p className="p-4 text-gray-500 text-center">
-            Belum ada transaksi.
-          </p>
-        )}
+      {loading ? (
+        <p className="text-gray-500">Memuat...</p>
+      ) : transaksi.length === 0 ? (
+        <p className="text-gray-500 bg-white p-4 rounded-xl shadow text-center">
+          Belum ada transaksi.
+        </p>
+      ) : (
+        <div className="bg-white rounded-xl shadow divide-y">
+          {transaksi.map((t) => (
+            <div key={t.id} className="p-4 flex justify-between items-center">
+              <div>
+                <p className="font-semibold">
+                  {t.tipe === "pemasukan" ? "Pendapatan Order" : "Penarikan"}
+                </p>
+                <p className="text-sm text-gray-500">
+                  {new Date(t.created_at).toLocaleString("id-ID")}
+                </p>
+              </div>
 
-        {transaksi.map((t) => (
-          <div key={t.id} className="p-4 flex justify-between items-center">
-            <div>
-              <p className="font-semibold">
-                {t.tipe === "pemasukan" ? "Pendapatan Order" : "Penarikan"}
-              </p>
-              <p className="text-sm text-gray-500">
-                {new Date(t.created_at).toLocaleString("id-ID")}
+              <p
+                className={`font-semibold ${
+                  t.tipe === "pemasukan" ? "text-green-600" : "text-red-500"
+                }`}
+              >
+                {t.tipe === "pemasukan" ? "+" : "-"} Rp{" "}
+                {Number(t.jumlah).toLocaleString("id-ID")}
               </p>
             </div>
-
-            <p
-              className={`font-semibold ${
-                t.tipe === "pemasukan"
-                  ? "text-green-600"
-                  : "text-red-500"
-              }`}
-            >
-              {t.tipe === "pemasukan" ? "+" : "-"} Rp{" "}
-              {Number(t.jumlah).toLocaleString("id-ID")}
-            </p>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
