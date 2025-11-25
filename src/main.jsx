@@ -9,3 +9,5 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <App />
   </BrowserRouter>
 )
+logEvent(analytics, "customer_app_opened");
+logEvent(analytics, "mitra_login_success");
