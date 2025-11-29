@@ -1,29 +1,26 @@
-// src/modules/gpsTrackerMitra.js
 export function startMitraTracking(mitraId, onUpdate) {
   if (!navigator.geolocation) {
-    console.error("GPS tidak didukung perangkat");
+    console.error("GPS tidak tersedia");
     return null;
   }
 
   const watchId = navigator.geolocation.watchPosition(
-    (position) => {
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
+    async (pos) => {
+      const latitude = pos.coords.latitude;
+      const longitude = pos.coords.longitude;
 
-      console.log(`[Mitra] GPS position:`, lat, lng);
+      console.log("[Mitra] tracking:", latitude, longitude);
 
-      // Kirim data ke callback / server
-      if (onUpdate) {
-        onUpdate({ mitraId, lat, lng });
-      }
+      if (onUpdate) onUpdate({ mitraId, latitude, longitude });
+
     },
-    (error) => console.error("GPS Error:", error),
-    { enableHighAccuracy: true, maximumAge: 1000 }
+    (err) => console.error("GPS Error:", err),
+    { enableHighAccuracy: true }
   );
 
   return watchId;
 }
 
-export function stopMitraTracking(watchId) {
-  if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+export function stopMitraTracking(id) {
+  if (id !== null) navigator.geolocation.clearWatch(id);
 }
