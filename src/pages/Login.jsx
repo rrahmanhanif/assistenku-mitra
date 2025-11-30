@@ -18,7 +18,10 @@ export default function Login() {
       setLoading(false)
       return
     }
-
+if (!validatePhone(phone)) {
+  alert("Nomor HP mitra tidak valid");
+  return;
+}
     // Simpan session MITRA (bukan customer)
     localStorage.setItem('mitra_session', data.session.access_token)
 
