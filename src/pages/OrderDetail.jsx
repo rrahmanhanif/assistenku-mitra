@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+import ChatRoom from "../components/ChatRoom";
+
+<ChatRoom orderId={orderId} mitraName={mitraName} />
 
 export default function OrderDetail() {
   const { id } = useParams();
