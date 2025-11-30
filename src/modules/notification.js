@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { setBadgeUnread } from "./badge";
 
 const supabase = createClient(
   "https://vptfubypmfafrnmwweyj.supabase.co",
@@ -6,17 +7,13 @@ const supabase = createClient(
 );
 
 // callback akan dipanggil ketika ada pesan masuk dari customer
-export function listenMitraNotification(mitraId, callback) {
-  return supabase
-    .channel(`notif-mitra-${mitraId}`)
-    .on(
-      "postgres_changes",
-      {
-        event: "INSERT",
-        schema: "public",
-        table: "messages",
-        filter: `sender=eq.customer`
-      },
+callback({
+  order_id: payload.new.order_id,
+  message: payload.new.message
+});
+
+// Tambahkan badge merah
+setBadgeUnread(payload.new.order_id);
       (payload) => {
         callback({
           order_id: payload.new.order_id,
