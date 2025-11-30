@@ -8,6 +8,8 @@ export default function App() {
   return <Dashboard />;
   <Route path="/chat/:orderId" element={<Chat />} />
   <Route path="/history" element={<History />} />
+<Route path="/rating" element={<Rating />} />
+
   useEffect(() => {
   if (!loggedIn) return;
 
