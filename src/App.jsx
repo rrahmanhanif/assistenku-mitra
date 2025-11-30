@@ -7,6 +7,7 @@ import Dashboard from "./pages/Dashboard.jsx";
 export default function App() {
   return <Dashboard />;
   <Route path="/chat/:orderId" element={<Chat />} />
+  <Route path="/history" element={<History />} />
   useEffect(() => {
   if (!loggedIn) return;
 
