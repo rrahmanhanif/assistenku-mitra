@@ -1,11 +1,19 @@
 import React, { useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 
-export default function Login() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+let lastLogin = 0;
+
+async function handleLogin(e) {
+  e.preventDefault();
+
+  const now = Date.now();
+  if (now - lastLogin < 8000)
+    return alert("Terlalu sering, coba lagi 8 detik");
+
+  lastLogin = now;
+
+  // ... lanjutan login mitra
+}
 
   const handleLogin = async (e) => {
     e.preventDefault()
