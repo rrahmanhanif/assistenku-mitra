@@ -1,26 +1,36 @@
-export function startMitraTracking(mitraId, onUpdate) {
+import supabase from "../lib/supabaseClient";
+
+let lastSend = 0; // anti-spam
+
+export function startMitraGPS(mitraId, mitraName) {
   if (!navigator.geolocation) {
-    console.error("GPS tidak tersedia");
-    return null;
+    console.error("GPS not supported");
+    return;
   }
 
-  const watchId = navigator.geolocation.watchPosition(
+  navigator.geolocation.watchPosition(
     async (pos) => {
-      const latitude = pos.coords.latitude;
-      const longitude = pos.coords.longitude;
+      const now = Date.now();
 
-      console.log("[Mitra] tracking:", latitude, longitude);
+      // ⛔ Anti-spam: kirim minimal 10 detik sekali
+      if (now - lastSend < 10000) return;
+      lastSend = now;
 
-      if (onUpdate) onUpdate({ mitraId, latitude, longitude });
+      const { latitude, longitude } = pos.coords;
 
+      await supabase.from("realtime_gps").upsert(
+        {
+          user_id: mitraId,
+          name: mitraName,
+          role: "mitra",
+          lat: latitude,
+          lng: longitude,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" }
+      );
     },
-    (err) => console.error("GPS Error:", err),
+    (err) => console.error("GPS error:", err),
     { enableHighAccuracy: true }
   );
-
-  return watchId;
-}
-
-export function stopMitraTracking(id) {
-  if (id !== null) navigator.geolocation.clearWatch(id);
 }
