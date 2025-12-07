@@ -1,26 +1,20 @@
-import React from 'react';
-import { listenMitraNotification } from "./modules/notification";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Dashboard from "./pages/Dashboard";
+import Chat from "./pages/Chat";
+import History from "./pages/History";
+import Rating from "./pages/Rating";
 
-// Perubahan hanya pada ekstensi
-import Dashboard from "./pages/Dashboard.jsx";
-
-export default function App() {
-  return <Dashboard />;
-  <Route path="/chat/:orderId" element={<Chat />} />
-  <Route path="/history" element={<History />} />
-<Route path="/rating" element={<Rating />} />
-
-  useEffect(() => {
-  if (!loggedIn) return;
-
-  const mitraId = localStorage.getItem("mitra_id");
-
-  const unsubNotif = listenMitraNotification(mitraId, (notif) => {
-    alert("Pesan baru dari Customer: " + notif.message);
-  });
-
-  return () => {
-    unsubNotif.unsubscribe();
-  };
-}, [loggedIn]);
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/chat/:orderId" element={<Chat />} />
+        <Route path="/history" element={<History />} />
+        <Route path="/rating" element={<Rating />} />
+      </Routes>
+    </Router>
+  );
 }
+
+export default App;
