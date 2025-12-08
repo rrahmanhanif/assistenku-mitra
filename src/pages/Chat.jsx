@@ -1,89 +1,115 @@
 // src/pages/Chat.jsx (MITRA)
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { sendMessage, subscribeChat } from "../lib/chat";
+import { getChat, sendChatMessage, subscribeChat } from "../lib/chat";
 import { supabase } from "../lib/supabase";
 
 export default function Chat() {
   const { orderId } = useParams();
+
   const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
+  const [text, setText] = useState("");
 
-  const mitraName = localStorage.getItem("mitra_name");
+  const mitraId = localStorage.getItem("mitra_id");
 
-  async function loadMessages() {
-    const { data } = await supabase
-      .from("messages")
-      .select("*")
-      .eq("order_id", orderId)
-      .order("created_at", { ascending: true });
-
-    setMessages(data || []);
-  }
-
+  // Load history + realtime listener
   useEffect(() => {
-    loadMessages();
+    async function loadHistory() {
+      const data = await getChat(orderId);
+      setMessages(data);
+    }
 
+    loadHistory();
+
+    // Realtime subscribe
     const channel = subscribeChat(orderId, (msg) => {
       setMessages((prev) => [...prev, msg]);
     });
 
-    return () => supabase.removeChannel(channel);
-  }, []);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [orderId]);
 
+  // SEND MESSAGE
   async function handleSend() {
-    if (!input.trim()) return;
+    if (!text.trim()) return;
 
-    await sendMessage(orderId, mitraName, input);
-    setInput("");
+    await sendChatMessage({
+      order_id: orderId,
+      sender_type: "mitra",
+      sender_id: mitraId,
+      message: text,
+    });
+
+    setText("");
   }
 
   return (
-    <div style={{ padding: "15px" }}>
-      <h3>Chat Customer</h3>
+    <div style={{ padding: 20 }}>
+      <h2>Chat dengan Customer</h2>
 
       <div
         style={{
-          height: "60vh",
-          overflowY: "scroll",
-          padding: "10px",
+          height: "70vh",
+          overflowY: "auto",
           border: "1px solid #ddd",
-          marginBottom: "10px",
+          borderRadius: 8,
+          padding: 10,
+          marginTop: 15,
         }}
       >
-        {messages.map((m, i) => (
-          <div key={i} style={{ marginBottom: "8px" }}>
-            <b>{m.sender}</b> <br />
-            {m.message}
+        {messages.map((m) => (
+          <div
+            key={m.id}
+            style={{
+              marginBottom: 10,
+              textAlign: m.sender_type === "mitra" ? "right" : "left",
+            }}
+          >
+            <div
+              style={{
+                display: "inline-block",
+                padding: 10,
+                background: m.sender_type === "mitra" ? "#007bff" : "#666",
+                color: "white",
+                borderRadius: 8,
+                maxWidth: "70%",
+                wordBreak: "break-word",
+              }}
+            >
+              {m.message}
+            </div>
           </div>
         ))}
       </div>
 
-      <input
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        placeholder="Tulis pesan..."
-        style={{
-          width: "100%",
-          padding: "10px",
-          border: "1px solid #ccc",
-          borderRadius: "6px",
-        }}
-      />
-
-      <button
-        onClick={handleSend}
-        style={{
-          marginTop: "10px",
-          padding: "12px",
-          background: "#28a745",
-          color: "white",
-          borderRadius: "8px",
-          width: "100%",
-        }}
-      >
-        Kirim
-      </button>
+      <div style={{ marginTop: 20, display: "flex", gap: 10 }}>
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Ketik pesan..."
+          style={{
+            flex: 1,
+            padding: 10,
+            border: "1px solid #ccc",
+            borderRadius: 8,
+          }}
+        />
+        <button
+          onClick={handleSend}
+          style={{
+            width: "25%",
+            padding: 10,
+            background: "#28a745",
+            color: "white",
+            borderRadius: 8,
+            fontWeight: "bold",
+          }}
+        >
+          Kirim
+        </button>
+      </div>
     </div>
   );
 }
