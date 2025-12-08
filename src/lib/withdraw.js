@@ -1,9 +1,9 @@
 // src/lib/withdraw.js
 import { supabase } from "./supabase";
 
-// ---------------------------
-// GET RIWAYAT WITHDRAW MITRA
-// ---------------------------
+// ===================================================
+// 1. GET RIWAYAT WITHDRAW MITRA
+// ===================================================
 export async function getMyWithdraws(mitraId) {
   const { data, error } = await supabase
     .from("withdraw_requests")
@@ -19,10 +19,13 @@ export async function getMyWithdraws(mitraId) {
   return data || [];
 }
 
-// ---------------------------
-// AJUKAN WITHDRAW
-// ---------------------------
+// ===================================================
+// 2. AJUKAN WITHDRAW + KUNCI SALDO (LOCKED)
+// ===================================================
 export async function requestWithdraw(payload) {
+  // -----------------------------
+  // A. INSERT ke withdraw_requests
+  // -----------------------------
   const { data, error } = await supabase
     .from("withdraw_requests")
     .insert([
@@ -39,16 +42,37 @@ export async function requestWithdraw(payload) {
     .single();
 
   if (error) {
-    console.error("Error requestWithdraw:", error);
+    console.error("Withdraw error:", error);
+    return null;
+  }
+
+  // -----------------------------
+  // B. KUNCI SALDO (wallet_transactions)
+  // -----------------------------
+  const { error: walletErr } = await supabase
+    .from("wallet_transactions")
+    .insert([
+      {
+        mitra_id: payload.mitra_id,
+        jumlah: payload.amount,
+        tipe: "WITHDRAW",
+        description: "Pending withdraw",
+        locked: true, // saldo dikunci sampai admin approve
+        order_id: null, // opsional
+      },
+    ]);
+
+  if (walletErr) {
+    console.error("Wallet lock error:", walletErr);
     return null;
   }
 
   return data;
 }
 
-// ---------------------------
-// REALTIME LISTENER (INSERT ONLY)
-// ---------------------------
+// ===================================================
+// 3. REALTIME LISTENER UNTUK WITHDRAW INSERT
+// ===================================================
 export function subscribeWithdraw(mitraId, callback) {
   return supabase
     .channel(`withdraw_${mitraId}`)
