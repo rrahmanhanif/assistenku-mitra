@@ -1,45 +1,68 @@
 // src/lib/withdraw.js
 import { supabase } from "./supabase";
 
-// Ambil semua request withdraw milik mitra
+// ---------------------------
+// GET RIWAYAT WITHDRAW MITRA
+// ---------------------------
 export async function getMyWithdraws(mitraId) {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("withdraw_requests")
     .select("*")
     .eq("mitra_id", mitraId)
     .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error getMyWithdraws:", error);
+    return [];
+  }
+
   return data || [];
 }
 
-// Ajukan withdraw
+// ---------------------------
+// AJUKAN WITHDRAW
+// ---------------------------
 export async function requestWithdraw(payload) {
   const { data, error } = await supabase
     .from("withdraw_requests")
-    .insert([payload])
+    .insert([
+      {
+        mitra_id: payload.mitra_id,
+        mitra_name: payload.mitra_name,
+        amount: payload.amount,
+        method: payload.method,
+        account_number: payload.account_number,
+        status: "PENDING",
+      },
+    ])
     .select()
     .single();
 
   if (error) {
-    console.error("Withdraw error:", error);
+    console.error("Error requestWithdraw:", error);
     return null;
   }
 
   return data;
 }
 
-// Listen realtime withdraw update
+// ---------------------------
+// REALTIME LISTENER (INSERT ONLY)
+// ---------------------------
 export function subscribeWithdraw(mitraId, callback) {
   return supabase
-    .channel(`withdraw-${mitraId}`)
+    .channel(`withdraw_${mitraId}`)
     .on(
       "postgres_changes",
       {
-        event: "*",
+        event: "INSERT",
         schema: "public",
         table: "withdraw_requests",
         filter: `mitra_id=eq.${mitraId}`,
       },
-      (payload) => callback(payload.new)
+      (payload) => {
+        if (payload?.new) callback(payload.new);
+      }
     )
     .subscribe();
 }
