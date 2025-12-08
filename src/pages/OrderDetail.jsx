@@ -1,44 +1,59 @@
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { supabase } from "../lib/supabaseClient";
-import ChatRoom from "../components/ChatRoom";
-
-<ChatRoom orderId={orderId} mitraName={mitraName} />
+// src/pages/OrderDetail.jsx
+import React, { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
 
 export default function OrderDetail() {
-  const { id } = useParams();
+  const orderId = window.location.pathname.split("/").pop();
   const [order, setOrder] = useState(null);
 
-  const loadOrder = async () => {
-    const { data } = await supabase.from("orders").select("*").eq("id", id).single();
-    setOrder(data);
-  };
+  async function loadOrder() {
+    const { data, error } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("id", orderId)
+      .single();
 
-  const updateStatus = async (newStatus) => {
-    await supabase.from("orders").update({ status: newStatus }).eq("id", id);
-    loadOrder();
-  };
+    if (!error) setOrder(data);
+  }
+
+  async function acceptOrder() {
+    await supabase
+      .from("orders")
+      .update({ status: "accepted" })
+      .eq("id", orderId);
+
+    alert("Order diterima!");
+    window.location.href = "/dashboard";
+  }
 
   useEffect(() => {
     loadOrder();
   }, []);
 
-  if (!order) return <div>Memuat...</div>;
+  if (!order) return <p>Memuat...</p>;
 
   return (
-    <div className="p-4">
-      <h1 className="text-xl font-bold text-blue-600">Detail Order</h1>
+    <div style={{ padding: 20 }}>
+      <h2>Detail Pesanan</h2>
 
-      <p className="mt-4"><b>ID:</b> {order.id}</p>
-      <p><b>Status:</b> {order.status}</p>
+      <p><b>Customer:</b> {order.customer_name}</p>
+      <p><b>Layanan:</b> {order.service_name}</p>
+      <p><b>Harga:</b> Rp {order.total_price}</p>
+      <p><b>Alamat:</b> {order.customer_address}</p>
 
-      <button onClick={() => updateStatus("dalam_perjalanan")} className="mt-4 p-2 bg-blue-500 text-white rounded">
-        Dalam Perjalanan
-      </button>
-
-      <button onClick={() => updateStatus("selesai")} className="mt-4 p-2 bg-green-500 text-white rounded">
-        Selesai
+      <button
+        onClick={acceptOrder}
+        style={{
+          padding: 12,
+          width: "100%",
+          background: "#007bff",
+          color: "white",
+          borderRadius: 8,
+          marginTop: 20,
+        }}
+      >
+        Terima Pesanan
       </button>
     </div>
   );
-}
+    }
