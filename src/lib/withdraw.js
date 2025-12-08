@@ -1,18 +1,45 @@
-import { createClient } from "@supabase/supabase-js";
+// src/lib/withdraw.js
+import { supabase } from "./supabase";
 
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON
-);
+// Ambil semua request withdraw milik mitra
+export async function getMyWithdraws(mitraId) {
+  const { data } = await supabase
+    .from("withdraw_requests")
+    .select("*")
+    .eq("mitra_id", mitraId)
+    .order("created_at", { ascending: false });
+  return data || [];
+}
 
-export async function requestWithdraw(mitraId, amount, bankName, bankNumber) {
-  return await supabase.from("withdraw_requests").insert([
-    {
-      mitra_id: mitraId,
-      amount,
-      bank_name: bankName,
-      bank_number: bankNumber,
-      status: "pending"
-    }
-  ]);
+// Ajukan withdraw
+export async function requestWithdraw(payload) {
+  const { data, error } = await supabase
+    .from("withdraw_requests")
+    .insert([payload])
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Withdraw error:", error);
+    return null;
+  }
+
+  return data;
+}
+
+// Listen realtime withdraw update
+export function subscribeWithdraw(mitraId, callback) {
+  return supabase
+    .channel(`withdraw-${mitraId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "withdraw_requests",
+        filter: `mitra_id=eq.${mitraId}`,
+      },
+      (payload) => callback(payload.new)
+    )
+    .subscribe();
 }
