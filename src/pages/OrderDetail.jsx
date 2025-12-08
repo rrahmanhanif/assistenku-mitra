@@ -1,29 +1,21 @@
 // src/pages/OrderDetail.jsx
 import React, { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import { acceptOrder, goingToCustomer, startWork, finishWork } from "../lib/orderAction";
 
 export default function OrderDetail() {
-  const orderId = window.location.pathname.split("/").pop();
+  const { id } = useParams();
   const [order, setOrder] = useState(null);
 
   async function loadOrder() {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("orders")
       .select("*")
-      .eq("id", orderId)
+      .eq("id", id)
       .single();
 
-    if (!error) setOrder(data);
-  }
-
-  async function acceptOrder() {
-    await supabase
-      .from("orders")
-      .update({ status: "accepted" })
-      .eq("id", orderId);
-
-    alert("Order diterima!");
-    window.location.href = "/dashboard";
+    setOrder(data);
   }
 
   useEffect(() => {
@@ -34,26 +26,13 @@ export default function OrderDetail() {
 
   return (
     <div style={{ padding: 20 }}>
-      <h2>Detail Pesanan</h2>
+      <h2>ID Pesanan: {order.id}</h2>
+      <h3>Status: {order.status}</h3>
 
-      <p><b>Customer:</b> {order.customer_name}</p>
-      <p><b>Layanan:</b> {order.service_name}</p>
-      <p><b>Harga:</b> Rp {order.total_price}</p>
-      <p><b>Alamat:</b> {order.customer_address}</p>
-
-      <button
-        onClick={acceptOrder}
-        style={{
-          padding: 12,
-          width: "100%",
-          background: "#007bff",
-          color: "white",
-          borderRadius: 8,
-          marginTop: 20,
-        }}
-      >
-        Terima Pesanan
-      </button>
+      <button onClick={() => acceptOrder(id)}>Terima Pesanan</button>
+      <button onClick={() => goingToCustomer(id)}>Menuju Lokasi</button>
+      <button onClick={() => startWork(id)}>Mulai Kerja</button>
+      <button onClick={() => finishWork(id)}>Selesai</button>
     </div>
   );
-    }
+}
