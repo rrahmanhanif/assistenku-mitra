@@ -7,11 +7,8 @@ import {
   acceptOrder,
   goingToCustomer,
   startWork,
-  finishWork,
-  updateOrder,
+  finishOrder,
 } from "../lib/orderAction";
-
-import { addIncome } from "../lib/income";
 
 export default function OrderDetail() {
   const { id } = useParams();
@@ -38,33 +35,20 @@ export default function OrderDetail() {
   if (!order) return <p style={{ padding: 20 }}>Memuat data...</p>;
 
   // ============================
-  // HANDLE COMPLETE ORDER
+  // FINISH ORDER DENGAN KOMISI 80/20
   // ============================
-  async function handleComplete() {
-    try {
-      const feeMitra = Math.floor(order.total_price * 0.80); // 80% bersih
-      const mitraId = order.mitra_id;
+  async function handleFinish() {
+    const mitraId = localStorage.getItem("mitra_id");
 
-      // Tambah pemasukan ke dompet mitra
-      await addIncome({
-        mitra_id: mitraId,
-        order_id: order.id,
-        amount: feeMitra,
-        description: "Pemasukan dari pesanan selesai",
-      });
+    const ok = await finishOrder(order.id, mitraId);
 
-      // Update status order
-      await updateOrder(order.id, {
-        status: "SELESAI",
-        selesai_at: new Date().toISOString(),
-      });
-
-      alert("Pesanan selesai & saldo masuk ke dompet mitra!");
-      window.location.href = "/";
-    } catch (err) {
-      console.error("Error finish order:", err);
-      alert("Gagal menyelesaikan pesanan.");
+    if (!ok) {
+      alert("Gagal menyelesaikan order.");
+      return;
     }
+
+    alert("Pesanan selesai! Komisi masuk.");
+    window.location.href = "/";
   }
 
   return (
@@ -75,6 +59,7 @@ export default function OrderDetail() {
       <p>Total Harga: <b>Rp {order.total_price?.toLocaleString("id-ID")}</b></p>
 
       <div style={{ marginTop: 20 }}>
+        {/* MITRA TERIMA PESANAN */}
         {order.status === "MENUNGGU_KONFIRMASI" && (
           <button
             onClick={() => acceptOrder(order.id)}
@@ -84,7 +69,8 @@ export default function OrderDetail() {
           </button>
         )}
 
-        {order.status === "MENUJU_LOKASI" && (
+        {/* MITRA MENUJU LOKASI */}
+        {order.status === "mitra_accepted" && (
           <button
             onClick={() => goingToCustomer(order.id)}
             style={btn}
@@ -93,7 +79,8 @@ export default function OrderDetail() {
           </button>
         )}
 
-        {order.status === "MULAI_PEKERJAAN" && (
+        {/* MULAI KERJA */}
+        {order.status === "on_the_way" && (
           <button
             onClick={() => startWork(order.id)}
             style={btn}
@@ -102,9 +89,10 @@ export default function OrderDetail() {
           </button>
         )}
 
-        {order.status === "DALAM_PEKERJAAN" && (
+        {/* SELESAIKAN PEKERJAAN */}
+        {order.status === "working" && (
           <button
-            onClick={handleComplete}
+            onClick={handleFinish}
             style={{ ...btn, background: "green" }}
           >
             Selesaikan Pesanan
@@ -115,7 +103,7 @@ export default function OrderDetail() {
   );
 }
 
-// Styling button biar rapi
+// Styling button
 const btn = {
   padding: "12px 15px",
   marginBottom: "10px",
