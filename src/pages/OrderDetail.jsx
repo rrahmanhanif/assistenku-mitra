@@ -10,6 +10,8 @@ import {
   finishOrder,
 } from "../lib/orderAction";
 
+import { subscribeOvertime } from "../lib/overtimeRealtime";
+
 export default function OrderDetail() {
   const { id } = useParams();
   const [order, setOrder] = useState(null);
@@ -30,6 +32,23 @@ export default function OrderDetail() {
 
   useEffect(() => {
     loadOrder();
+
+    // ============================
+    // REALTIME OVERTIME FEEDBACK
+    // ============================
+    const subOT = subscribeOvertime(id, (req) => {
+      if (req.status === "ACCEPTED") {
+        alert(
+          `Customer menyetujui overtime ${req.requested_minutes} menit.\nBiaya tambahan: Rp ${req.total_price}`
+        );
+      }
+
+      if (req.status === "REJECTED") {
+        alert("Customer menolak overtime.");
+      }
+    });
+
+    return () => supabase.removeChannel(subOT);
   }, []);
 
   if (!order) return <p style={{ padding: 20 }}>Memuat data...</p>;
@@ -39,7 +58,6 @@ export default function OrderDetail() {
   // ============================
   async function handleFinish() {
     const mitraId = localStorage.getItem("mitra_id");
-
     const ok = await finishOrder(order.id, mitraId);
 
     if (!ok) {
@@ -58,38 +76,34 @@ export default function OrderDetail() {
       <p>Layanan: <b>{order.service_name}</b></p>
       <p>Total Harga: <b>Rp {order.total_price?.toLocaleString("id-ID")}</b></p>
 
+      {/* Jika overtime sudah diterapkan */}
+      {order.overtime_minutes > 0 && (
+        <p style={{ marginTop: 10 }}>
+          <b>Overtime:</b> {order.overtime_minutes} menit  
+          <br />
+          <b>Biaya tambahan:</b> Rp {order.overtime_price}
+        </p>
+      )}
+
       <div style={{ marginTop: 20 }}>
-        {/* MITRA TERIMA PESANAN */}
         {order.status === "MENUNGGU_KONFIRMASI" && (
-          <button
-            onClick={() => acceptOrder(order.id)}
-            style={btn}
-          >
+          <button onClick={() => acceptOrder(order.id)} style={btn}>
             Terima Pesanan
           </button>
         )}
 
-        {/* MITRA MENUJU LOKASI */}
         {order.status === "mitra_accepted" && (
-          <button
-            onClick={() => goingToCustomer(order.id)}
-            style={btn}
-          >
+          <button onClick={() => goingToCustomer(order.id)} style={btn}>
             Menuju Customer
           </button>
         )}
 
-        {/* MULAI KERJA */}
         {order.status === "on_the_way" && (
-          <button
-            onClick={() => startWork(order.id)}
-            style={btn}
-          >
+          <button onClick={() => startWork(order.id)} style={btn}>
             Mulai Pekerjaan
           </button>
         )}
 
-        {/* SELESAIKAN PEKERJAAN */}
         {order.status === "working" && (
           <button
             onClick={handleFinish}
