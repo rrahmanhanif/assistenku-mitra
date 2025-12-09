@@ -1,40 +1,56 @@
-import React, { useState } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import React, { useState } from "react";
+import { supabase } from "../lib/supabaseClient";
+import { generateDeviceId } from "../lib/device";
 
 let lastLogin = 0;
 
-async function handleLogin(e) {
-  e.preventDefault();
+export default function LoginMitra() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const now = Date.now();
-  if (now - lastLogin < 8000)
-    return alert("Terlalu sering, coba lagi 8 detik");
+  async function handleLogin(e) {
+    e.preventDefault();
 
-  lastLogin = now;
+    const now = Date.now();
+    if (now - lastLogin < 8000)
+      return alert("Terlalu sering, coba lagi 8 detik");
+    lastLogin = now;
 
-  // ... lanjutan login mitra
-}
+    setLoading(true);
+    setError("");
 
-  const handleLogin = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
+    // LOGIN via Supabase Auth
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
-      setError(error.message)
-      setLoading(false)
-      return
+      setError(error.message);
+      setLoading(false);
+      return;
     }
-if (!validatePhone(phone)) {
-  alert("Nomor HP mitra tidak valid");
-  return;
-}
-    // Simpan session MITRA (bukan customer)
-    localStorage.setItem('mitra_session', data.session.access_token)
 
-    // Redirect ke dashboard mitra
-    window.location.href = '/'
+    const session = data.session;
+    const mitraId = session?.user?.id;
+
+    // Generate Device ID
+    const deviceId = generateDeviceId();
+
+    // Simpan device_id ke database
+    await supabase
+      .from("mitra_profiles")
+      .update({ device_id: deviceId })
+      .eq("id", mitraId);
+
+    // Simpan ke lokal
+    localStorage.setItem("device_id", deviceId);
+    localStorage.setItem("mitra_session", session.access_token);
+
+    // Redirect
+    window.location.href = "/";
   }
 
   return (
@@ -69,17 +85,16 @@ if (!validatePhone(phone)) {
           className="bg-blue-600 hover:bg-blue-700 text-white w-full py-2 rounded"
           disabled={loading}
         >
-          {loading ? 'Masuk...' : 'Masuk'}
+          {loading ? "Masuk..." : "Masuk"}
         </button>
 
-        {/* Tombol daftar mitra */}
         <p
           className="text-blue-600 text-center mt-4 cursor-pointer"
-          onClick={() => (window.location.href = '/register')}
+          onClick={() => (window.location.href = "/register")}
         >
           Belum punya akun? Daftar Mitra
         </p>
       </form>
     </div>
-  )
+  );
 }
