@@ -1,7 +1,14 @@
-export async function getServices() {
-  const endpoint = import.meta.env.VITE_ADMIN_URL + "/api/services/list";
+// src/api/getServices.js
+import { gatewayFetch } from "../core/gateway";
 
-  const req = await fetch(endpoint);
+export async function getServices(userContext) {
+  const endpoint = "/api/services/list";
+
+  const req = await gatewayFetch(endpoint, {
+    baseUrl: import.meta.env.VITE_ADMIN_URL,
+    userId: userContext?.userId,
+  });
+
   const res = await req.json();
 
   if (!res.success) return [];
