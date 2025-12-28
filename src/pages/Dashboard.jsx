@@ -1,8 +1,8 @@
 // src/pages/Dashboard.jsx
 import React, { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
+import supabase from "../lib/supabaseClient";
 
-import { subscribeNewOrders } from "../lib/ordersRealtime";
+import { subscribeNewOrders } from "../lib/orderRealtime";
 import { getMitraBalance } from "../lib/wallet";
 
 export default function Dashboard() {
@@ -20,20 +20,28 @@ export default function Dashboard() {
       const s = await getMitraBalance(mitraId);
       setSaldo(s || 0);
     }
+
     loadSaldo();
-  }, []);
+  }, [mitraId]);
 
   // ==========================================
   // LOAD ORDER MENUNGGU (PENDING)
   // ==========================================
   async function loadPendingOrders() {
+    if (!mitraId) return;
+
     const { data, error } = await supabase
       .from("orders")
       .select("*")
-      .eq("status", "MENUNGGU_KONFIRMASI")
+      .eq("status", "pending")
       .order("created_at", { ascending: false });
 
-    if (!error) setOrders(data || []);
+    if (error) {
+      console.error("Failed to load pending orders:", error);
+      return;
+    }
+
+    setOrders(data || []);
   }
 
   // ==========================================
@@ -42,79 +50,37 @@ export default function Dashboard() {
   useEffect(() => {
     loadPendingOrders();
 
-    const channel = subscribeNewOrders((newOrder) => {
+    const unsubscribe = subscribeNewOrders((newOrder) => {
       setOrders((prev) => [newOrder, ...prev]);
     });
 
-    return () => supabase.removeChannel(channel);
-  }, []);
+    return () => {
+      if (typeof unsubscribe === "function") {
+        unsubscribe();
+      }
+    };
+  }, [mitraId]);
 
-  // ==========================================
-  // UI
-  // ==========================================
   return (
-    <div style={{ padding: 20 }}>
+    <div className="dashboard">
       <h2>Dashboard Mitra</h2>
 
-      {/* SALDO MITRA */}
-      <div
-        style={{
-          marginTop: 15,
-          marginBottom: 25,
-          padding: 15,
-          background: "#f5f5f5",
-          borderRadius: 10,
-        }}
-      >
-        <p style={{ margin: 0, color: "#777" }}>Saldo Anda</p>
-        <h2 style={{ margin: 0, color: "#28a745" }}>
-          Rp {saldo.toLocaleString("id-ID")}
-        </h2>
+      <div className="saldo-box">
+        <strong>Saldo:</strong> Rp {saldo.toLocaleString("id-ID")}
       </div>
 
-      <h3>Order Masuk</h3>
+      <div className="order-list">
+        {orders.length === 0 && <p>Tidak ada pesanan menunggu.</p>}
 
-      {orders.length === 0 && (
-        <p>Tidak ada order baru untuk saat ini.</p>
-      )}
-
-      {orders.map((order) => (
-        <div
-          key={order.id}
-          style={{
-            padding: 12,
-            border: "1px solid #ddd",
-            borderRadius: 8,
-            marginBottom: 12,
-            background: "#fff",
-          }}
-        >
-          <p><b>ID Pesanan:</b> {order.id}</p>
-          <p><b>Layanan:</b> {order.service_name}</p>
-          <p><b>Customer:</b> {order.customer_name}</p>
-          <p>
-            <b>Total:</b> Rp {order.total_price.toLocaleString("id-ID")}
-          </p>
-
-          <button
-            style={{
-              marginTop: 10,
-              padding: 10,
-              width: "100%",
-              background: "#007bff",
-              color: "white",
-              border: "none",
-              borderRadius: 6,
-              cursor: "pointer",
-            }}
-            onClick={() =>
-              (window.location.href = `/order/${order.id}`)
-            }
-          >
-            Lihat Detail
-          </button>
-        </div>
-      ))}
+        {orders.map((order) => (
+          <div key={order.id} className="order-card">
+            <p>
+              <strong>Order #{order.id}</strong>
+            </p>
+            <p>Total: Rp {Number(order.total_price).toLocaleString("id-ID")}</p>
+          </div>
+        ))}
+      </div>
     </div>
   );
-            }
+}
