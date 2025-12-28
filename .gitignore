@@ -9,6 +9,6 @@ coverage
 # Environment variables
 .env
 
-# Editor / OS
+# Editor / OS files
 .vscode
 .DS_Store
