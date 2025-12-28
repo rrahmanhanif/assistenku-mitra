@@ -1,7 +1,8 @@
 // src/App.jsx
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import React, { useEffect } from "react";
-import { supabase } from "./lib/supabaseClient";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import supabase from "./lib/supabaseClient";
+import { runDeviceFraudChecks } from "./lib/fraudSignals";
 
 // Pages
 import Dashboard from "./pages/Dashboard";
@@ -27,18 +28,25 @@ export default function App() {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (!user) return; // belum login
+      if (!user) return;
 
-      const mitraId = user.id;
-
-      const { data } = await supabase
-        .from("mitra_profiles")
+      // Ambil device_id yang tersimpan untuk user ini
+      const { data: rows, error } = await supabase
+        .from("user_devices")
         .select("device_id")
-        .eq("id", mitraId)
-        .single();
+        .eq("user_id", user.id)
+        .limit(1);
 
-      if (data && data.device_id !== deviceLocal) {
-        alert("Akun anda digunakan di perangkat lain!");
+      if (error) {
+        console.error("Device check error:", error);
+        return;
+      }
+
+      const deviceDb = rows?.[0]?.device_id;
+
+      // Jika device mismatch: paksa logout
+      if (deviceDb && deviceLocal && deviceDb !== deviceLocal) {
+        await supabase.auth.signOut();
         localStorage.clear();
         window.location.href = "/login";
       }
@@ -62,6 +70,23 @@ export default function App() {
     }
 
     startGPS();
+  }, []);
+
+  // =====================================
+  // FRAUD SIGNALS — ROOT/JAILBREAK
+  // =====================================
+  useEffect(() => {
+    async function checkFraudSignals() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      runDeviceFraudChecks(user.id);
+    }
+
+    checkFraudSignals();
   }, []);
 
   // =====================================
