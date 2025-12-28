@@ -1,7 +1,9 @@
 import supabase from "../lib/supabaseClient";
+import { hasLocationConsent } from "./locationConsent";
 
 export function startMitraGPS(mitraId) {
   if (!navigator.geolocation) return;
+  if (!hasLocationConsent()) return;
 
   navigator.geolocation.watchPosition(
     async (pos) => {
