@@ -27,7 +27,7 @@ export function startMitraGPS(mitraId) {
       lastLocation = pos;
 
       // Throttle laporan fraud: maks 1x per 60 detik
-      if (mockSignal.suspicious && Date.now() - lastFraudReport > 60000) {
+      if (mockSignal?.suspicious && Date.now() - lastFraudReport > 60_000) {
         await reportFraudSignal(mitraId, "mock_location", mockSignal);
         lastFraudReport = Date.now();
       }
