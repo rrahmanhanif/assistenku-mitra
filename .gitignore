@@ -1,8 +1,14 @@
+# Dependencies
 node_modules
 npm-debug.log*
-.DS_Store
+
+# Build output
 dist
+coverage
+
+# Environment variables
 .env
 
-# Build/coverage artifacts
-coverage
+# Editor / OS
+.vscode
+.DS_Store
