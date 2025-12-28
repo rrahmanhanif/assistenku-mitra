@@ -1,8 +1,16 @@
 import { supabase } from "../lib/supabaseClient";
+import { hasLocationConsent } from "./locationConsent";
 
 export const startSendingLocation = (mitra_id) => {
   if (!navigator.geolocation) {
     alert("GPS tidak tersedia di perangkat");
+    return;
+  }
+
+  if (!hasLocationConsent()) {
+    console.warn(
+      "Izin lokasi belum diberikan. Memperlihatkan alasan terlebih dahulu."
+    );
     return;
   }
 
