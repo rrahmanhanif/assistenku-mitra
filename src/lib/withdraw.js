@@ -1,5 +1,7 @@
 // src/lib/withdraw.js
 import { supabase } from "./supabase";
+import { logError } from "../core/logger";
+import { recordAuditEvent } from "../core/auditTrail";
 
 // ===================================================
 // 1. GET RIWAYAT WITHDRAW MITRA
@@ -12,7 +14,7 @@ export async function getMyWithdraws(mitraId) {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Error getMyWithdraws:", error);
+    logError(error, "withdraw.fetch_history", { mitraId });
     return [];
   }
 
@@ -42,7 +44,7 @@ export async function requestWithdraw(payload) {
     .single();
 
   if (error) {
-    console.error("Withdraw error:", error);
+    logError(error, "withdraw.insert", { mitra_id: payload.mitra_id });
     return null;
   }
 
@@ -63,9 +65,19 @@ export async function requestWithdraw(payload) {
     ]);
 
   if (walletErr) {
-    console.error("Wallet lock error:", walletErr);
+    logError(walletErr, "withdraw.wallet_lock", { mitra_id: payload.mitra_id });
     return null;
   }
+
+  await recordAuditEvent({
+    action: "withdraw.requested",
+    actorId: payload.mitra_id,
+    entityId: data?.id,
+    metadata: {
+      amount: payload.amount,
+      method: payload.method,
+    },
+  });
 
   return data;
 }
