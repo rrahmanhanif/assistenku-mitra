@@ -1,4 +1,5 @@
 import supabase from "../lib/supabaseClient";
+import { hasLocationConsent } from "./locationConsent";
 
 let lastSend = 0; // anti-spam
 
@@ -8,12 +9,19 @@ export function startMitraGPS(mitraId, mitraName) {
     return;
   }
 
+  if (!hasLocationConsent()) {
+    console.warn(
+      "Izin lokasi belum disetujui. Tampilkan rationale terlebih dahulu."
+    );
+    return;
+  }
+
   navigator.geolocation.watchPosition(
     async (pos) => {
       const now = Date.now();
 
       // ⛔ Anti-spam: kirim minimal 10 detik sekali
-      if (now - lastSend < 10000) return;
+      if (now - lastSend < 10_000) return;
       lastSend = now;
 
       const { latitude, longitude } = pos.coords;
