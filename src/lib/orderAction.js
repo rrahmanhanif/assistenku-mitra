@@ -1,92 +1,67 @@
 // src/lib/orderAction.js
-import supabase from "./supabaseClient";
+import { supabase } from "./supabase";
 import { addIncome } from "./income";
-import {
-  logMatchTime,
-  logOrderFunnelStage,
-  logTechnicalMetric,
-} from "./observability";
+import { logError } from "../core/logger";
+import { recordAuditEvent } from "../core/auditTrail";
 
 // ==========================
 // 1. MITRA MENERIMA PESANAN
 // ==========================
-// mitraId bersifat opsional untuk backward-compatibility
-export async function acceptOrder(orderId, mitraId) {
-  const acceptedAt = new Date().toISOString();
-
-  // Ambil created_at dan mitra_id (jika sudah terisi) untuk metrik match time
-  const { data: order, error: orderError } = await supabase
+export async function acceptOrder(orderId, actorId) {
+  const { error } = await supabase
     .from("orders")
-    .select("created_at, mitra_id")
-    .eq("id", orderId)
-    .single();
-
-  if (orderError) {
-    console.error("acceptOrder: failed to load order", orderError);
-  }
-
-  const response = await supabase
-    .from("orders")
-    .update({ status: "mitra_accepted", accepted_at: acceptedAt })
+    .update({ status: "mitra_accepted" })
     .eq("id", orderId);
 
-  const resolvedMitraId = mitraId || order?.mitra_id;
-
-  await logOrderFunnelStage({
-    orderId,
-    stage: "mitra_accepted",
-    mitraId: resolvedMitraId,
-    metadata: { source: "mitra_app" },
-  });
-
-  if (order?.created_at) {
-    await logMatchTime({
-      orderId,
-      mitraId: resolvedMitraId,
-      createdAt: order.created_at,
-      matchedAt: acceptedAt,
+  if (!error) {
+    await recordAuditEvent({
+      action: "order.accepted",
+      actorId,
+      entityId: orderId,
     });
   }
 
-  return response;
+  return { error };
 }
 
 // ==========================
 // 2. MENUJU LOKASI CUSTOMER
 // ==========================
-export async function goingToCustomer(orderId, mitraId) {
-  const response = await supabase
+export async function goingToCustomer(orderId, actorId) {
+  const { error } = await supabase
     .from("orders")
     .update({ status: "on_the_way" })
     .eq("id", orderId);
 
-  await logOrderFunnelStage({
-    orderId,
-    stage: "on_the_way",
-    mitraId,
-    metadata: { source: "mitra_app" },
-  });
+  if (!error) {
+    await recordAuditEvent({
+      action: "order.on_the_way",
+      actorId,
+      entityId: orderId,
+    });
+  }
 
-  return response;
+  return { error };
 }
 
 // ==========================
 // 3. MULAI PEKERJAAN
 // ==========================
-export async function startWork(orderId, mitraId) {
-  const response = await supabase
+export async function startWork(orderId, actorId) {
+  const { error } = await supabase
     .from("orders")
-    .update({ status: "working", started_at: new Date().toISOString() })
+    .update({ status: "working" })
     .eq("id", orderId);
 
-  await logOrderFunnelStage({
-    orderId,
-    stage: "working",
-    mitraId,
-    metadata: { source: "mitra_app" },
-  });
+  if (!error) {
+    await recordAuditEvent({
+      action: "order.start_work",
+      actorId,
+      entityId: orderId,
+    });
+  }
 
-  return response;
+  return { error };
 }
 
 // ==========================
@@ -101,7 +76,7 @@ export async function finishOrder(orderId, mitraId) {
     .single();
 
   if (error || !order) {
-    console.error("FinishOrder error load:", error);
+    logError(error, "finishOrder.load", { orderId });
     return false;
   }
 
@@ -118,7 +93,7 @@ export async function finishOrder(orderId, mitraId) {
   await addIncome("PAJAK", pajakUMKM, orderId, "Pajak UMKM 0.5%");
 
   // 4. Update status order + log lengkap
-  await supabase
+  const { error: updateError } = await supabase
     .from("orders")
     .update({
       status: "completed",
@@ -129,17 +104,21 @@ export async function finishOrder(orderId, mitraId) {
     })
     .eq("id", orderId);
 
-  await logOrderFunnelStage({
-    orderId,
-    stage: "completed",
-    mitraId,
-    metadata: { source: "mitra_app" },
-  });
+  if (updateError) {
+    logError(updateError, "finishOrder.update", { orderId });
+    return false;
+  }
 
-  await logTechnicalMetric("payout.calculated", komisiMitra, {
-    orderId,
-    adminCommission: komisiAdmin,
-    taxFee: pajakUMKM,
+  await recordAuditEvent({
+    action: "order.completed",
+    actorId: mitraId,
+    entityId: orderId,
+    metadata: {
+      total_price: price,
+      mitra_commission: komisiMitra,
+      admin_commission: komisiAdmin,
+      tax_fee: pajakUMKM,
+    },
   });
 
   return true;
