@@ -1,7 +1,7 @@
 // src/pages/OrderDetail.jsx
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { supabase } from "../lib/supabase";
+import supabase from "../lib/supabaseClient";
 
 import {
   acceptOrder,
@@ -15,6 +15,8 @@ import { subscribeOvertime } from "../lib/overtimeRealtime";
 export default function OrderDetail() {
   const { id } = useParams();
   const [order, setOrder] = useState(null);
+
+  const mitraId = localStorage.getItem("mitra_id");
 
   // ============================
   // LOAD ORDER DETAIL
@@ -42,26 +44,22 @@ export default function OrderDetail() {
           `Customer menyetujui overtime ${req.requested_minutes} menit.\nBiaya tambahan: Rp ${req.total_price}`
         );
       }
-
-      if (req.status === "REJECTED") {
-        alert("Customer menolak overtime.");
-      }
     });
 
-    return () => supabase.removeChannel(subOT);
-  }, []);
+    return () => {
+      if (typeof subOT === "function") subOT();
+    };
+  }, [id]);
 
-  if (!order) return <p style={{ padding: 20 }}>Memuat data...</p>;
-
-  // ============================
-  // FINISH ORDER DENGAN KOMISI 80/20
-  // ============================
   async function handleFinish() {
-    const mitraId = localStorage.getItem("mitra_id");
-    const ok = await finishOrder(order.id, mitraId);
+    if (!mitraId) {
+      alert("Mitra belum login.");
+      return;
+    }
 
+    const ok = await finishOrder(id, mitraId);
     if (!ok) {
-      alert("Gagal menyelesaikan order.");
+      alert("Gagal menyelesaikan pesanan. Coba lagi.");
       return;
     }
 
@@ -69,17 +67,25 @@ export default function OrderDetail() {
     window.location.href = "/";
   }
 
+  if (!order) return <div style={{ padding: 20 }}>Loading...</div>;
+
   return (
     <div style={{ padding: 20 }}>
       <h2>Detail Pesanan #{order.id}</h2>
-      <p>Status: <b>{order.status}</b></p>
-      <p>Layanan: <b>{order.service_name}</b></p>
-      <p>Total Harga: <b>Rp {order.total_price?.toLocaleString("id-ID")}</b></p>
+      <p>
+        Status: <b>{order.status}</b>
+      </p>
+      <p>
+        Layanan: <b>{order.service_name}</b>
+      </p>
+      <p>
+        Total Harga: <b>Rp {order.total_price?.toLocaleString("id-ID")}</b>
+      </p>
 
       {/* Jika overtime sudah diterapkan */}
       {order.overtime_minutes > 0 && (
         <p style={{ marginTop: 10 }}>
-          <b>Overtime:</b> {order.overtime_minutes} menit  
+          <b>Overtime:</b> {order.overtime_minutes} menit
           <br />
           <b>Biaya tambahan:</b> Rp {order.overtime_price}
         </p>
@@ -87,19 +93,19 @@ export default function OrderDetail() {
 
       <div style={{ marginTop: 20 }}>
         {order.status === "MENUNGGU_KONFIRMASI" && (
-          <button onClick={() => acceptOrder(order.id)} style={btn}>
+          <button onClick={() => acceptOrder(order.id, mitraId)} style={btn}>
             Terima Pesanan
           </button>
         )}
 
         {order.status === "mitra_accepted" && (
-          <button onClick={() => goingToCustomer(order.id)} style={btn}>
+          <button onClick={() => goingToCustomer(order.id, mitraId)} style={btn}>
             Menuju Customer
           </button>
         )}
 
         {order.status === "on_the_way" && (
-          <button onClick={() => startWork(order.id)} style={btn}>
+          <button onClick={() => startWork(order.id, mitraId)} style={btn}>
             Mulai Pekerjaan
           </button>
         )}
@@ -125,7 +131,6 @@ const btn = {
   background: "#007bff",
   color: "white",
   border: "none",
-  borderRadius: 6,
+  borderRadius: 8,
   cursor: "pointer",
-  fontSize: "16px",
 };
