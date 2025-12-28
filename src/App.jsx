@@ -1,5 +1,5 @@
 // src/App.jsx
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import supabase from "./lib/supabaseClient";
 import { runDeviceFraudChecks } from "./lib/fraudSignals";
@@ -11,11 +11,26 @@ import Chat from "./pages/Chat";
 import History from "./pages/History";
 import Rating from "./pages/Rating";
 import Withdraw from "./pages/Withdraw";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 
 // Modules
 import { startMitraGPS } from "./modules/liveLocation";
+import LocationRationaleDialog from "./components/LocationRationaleDialog";
+import { hasLocationConsent, recordLocationConsent } from "./modules/locationConsent";
 
 export default function App() {
+  const [locationConsent, setLocationConsent] = useState(hasLocationConsent());
+  const [showLocationRationale, setShowLocationRationale] = useState(
+    !hasLocationConsent()
+  );
+
+  const handleApproveLocation = () => {
+    recordLocationConsent();
+    setLocationConsent(true);
+    setShowLocationRationale(false);
+  };
+
   // =====================================
   // DEVICE LOCK — MITRA
   // =====================================
@@ -23,29 +38,27 @@ export default function App() {
     async function checkDevice() {
       const deviceLocal = localStorage.getItem("device_id");
 
-      // Ambil user aktif dari Supabase Auth
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (!user) return;
+      if (!user) return; // belum login
 
-      // Ambil device_id yang tersimpan untuk user ini
-      const { data: rows, error } = await supabase
-        .from("user_devices")
+      const mitraId = user.id;
+
+      const { data, error } = await supabase
+        .from("mitra_profiles")
         .select("device_id")
-        .eq("user_id", user.id)
-        .limit(1);
+        .eq("id", mitraId)
+        .single();
 
       if (error) {
         console.error("Device check error:", error);
         return;
       }
 
-      const deviceDb = rows?.[0]?.device_id;
-
-      // Jika device mismatch: paksa logout
-      if (deviceDb && deviceLocal && deviceDb !== deviceLocal) {
+      if (data && data.device_id && deviceLocal && data.device_id !== deviceLocal) {
+        alert("Akun anda digunakan di perangkat lain!");
         await supabase.auth.signOut();
         localStorage.clear();
         window.location.href = "/login";
@@ -56,7 +69,7 @@ export default function App() {
   }, []);
 
   // =====================================
-  // AUTO UPDATE GPS MITRA
+  // AUTO UPDATE GPS MITRA (hanya jika consent)
   // =====================================
   useEffect(() => {
     async function startGPS() {
@@ -64,13 +77,13 @@ export default function App() {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (!user) return;
+      if (!user || !locationConsent) return;
 
       startMitraGPS(user.id);
     }
 
     startGPS();
-  }, []);
+  }, [locationConsent]);
 
   // =====================================
   // FRAUD SIGNALS — ROOT/JAILBREAK
@@ -101,7 +114,17 @@ export default function App() {
         <Route path="/history" element={<History />} />
         <Route path="/rating" element={<Rating />} />
         <Route path="/withdraw" element={<Withdraw />} />
+
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfService />} />
       </Routes>
+
+      {showLocationRationale && (
+        <LocationRationaleDialog
+          onAccept={handleApproveLocation}
+          onDecline={() => setShowLocationRationale(false)}
+        />
+      )}
     </Router>
   );
 }
