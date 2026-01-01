@@ -1,138 +1,115 @@
-// src/pages/Withdraw.jsx
-import React, { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase"; 
-import { getMyWithdraws, requestWithdraw, subscribeWithdraw } from "../lib/withdraw";
+import { useEffect, useState } from "react";
+import { fetchPayoutSummary, listPayouts, requestPayout } from "../api/payouts";
+import { ErrorBanner } from "../components/ErrorBanner";
+import { LoadingSkeleton } from "../components/LoadingSkeleton";
 
 export default function Withdraw() {
-  const mitraId = localStorage.getItem("mitra_id");
-  const mitraName = localStorage.getItem("mitra_name");
-
-  const [withdraws, setWithdraws] = useState([]);
   const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState("BANK");
-  const [accountNumber, setAccountNumber] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [destination, setDestination] = useState("");
+  const [history, setHistory] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
-  // ===========================
-  // LOAD DATA + SUBSCRIBE
-  // ===========================
   useEffect(() => {
-    async function loadData() {
-      const data = await getMyWithdraws(mitraId);
-      setWithdraws(data || []);
+    async function load() {
+      try {
+        setLoading(true);
+        const [sum, payouts] = await Promise.all([fetchPayoutSummary(), listPayouts()]);
+        setSummary(sum);
+        setHistory(payouts || []);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
     }
-    loadData();
-
-    const channel = subscribeWithdraw(mitraId, (newReq) => {
-      setWithdraws((prev) => [newReq, ...prev]);
-    });
-
-    return () => supabase.removeChannel(channel);
+    load();
   }, []);
 
-  // ===========================
-  // HANDLE SUBMIT
-  // ===========================
-  async function handleSubmit() {
-    if (!amount || !accountNumber) {
-      alert("Mohon lengkapi semua data.");
-      return;
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    setError("");
+    try {
+      await requestPayout({ amount: Number(amount), destination });
+      const payouts = await listPayouts();
+      setHistory(payouts || []);
+      setAmount("");
+      setDestination("");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
     }
-
-    setLoading(true);
-
-    const success = await requestWithdraw({
-      mitra_id: mitraId,
-      mitra_name: mitraName,
-      amount: Number(amount),
-      method,
-      account_number: accountNumber,
-    });
-
-    setLoading(false);
-
-    if (!success) {
-      alert("Gagal mengajukan withdraw.");
-      return;
-    }
-
-    alert("Withdraw berhasil diajukan!");
-    setAmount("");
-    setAccountNumber("");
-  }
+  };
 
   return (
-    <div style={{ padding: 20 }}>
-      <h2>Withdraw Saldo</h2>
+    <div className="p-5 space-y-4">
+      <h1 className="text-2xl font-bold text-blue-600">Withdraw / Payout</h1>
+      <ErrorBanner message={error} />
 
-      {/* FORM INPUT */}
-      <div style={{ marginBottom: 20 }}>
-        <label>Jumlah (Rp)</label>
+      <div className="bg-white p-4 rounded-lg shadow space-y-2">
+        <h2 className="font-semibold">Ringkasan</h2>
+        {loading ? (
+          <LoadingSkeleton rows={2} />
+        ) : (
+          <div className="text-sm text-gray-700">
+            <div>Saldo dapat ditarik: {summary?.withdrawable ?? "-"}</div>
+            <div>Total pending: {summary?.pending ?? "-"}</div>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white p-4 rounded-lg shadow space-y-2">
+        <h2 className="font-semibold">Ajukan Withdraw</h2>
+
+        <label className="block text-sm font-semibold">Jumlah (Rp)</label>
         <input
+          className="w-full border rounded p-2"
           type="number"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          placeholder="Contoh: 50000"
-          style={{ width: "100%", padding: 10 }}
         />
 
-        <label>Metode</label>
-        <select
-          value={method}
-          onChange={(e) => setMethod(e.target.value)}
-          style={{ width: "100%", padding: 10 }}
-        >
-          <option value="BANK">Transfer Bank</option>
-          <option value="EWALLET">E-Wallet</option>
-        </select>
-
-        <label>No Rekening / E-Wallet</label>
+        <label className="block text-sm font-semibold">Tujuan Bank / Wallet</label>
         <input
+          className="w-full border rounded p-2"
           type="text"
-          value={accountNumber}
-          onChange={(e) => setAccountNumber(e.target.value)}
-          placeholder="Contoh: 08123456789"
-          style={{ width: "100%", padding: 10 }}
+          value={destination}
+          onChange={(e) => setDestination(e.target.value)}
+          placeholder="DEST-REF"
         />
 
         <button
+          disabled={!amount || !destination || submitting}
           onClick={handleSubmit}
-          disabled={loading}
-          style={{
-            marginTop: 10,
-            width: "100%",
-            padding: 12,
-            background: "#007bff",
-            color: "white",
-            borderRadius: 6,
-          }}
+          className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-60"
         >
-          {loading ? "Mengirim..." : "Ajukan Withdraw"}
+          Ajukan Withdraw
         </button>
       </div>
 
-      {/* RIWAYAT */}
-      <h3>Riwayat Pengajuan</h3>
-
-      {withdraws.length === 0 && <p>Belum ada riwayat.</p>}
-
-      {withdraws.map((w) => (
-        <div
-          key={w.id}
-          style={{
-            padding: 12,
-            marginBottom: 10,
-            border: "1px solid #ddd",
-            borderRadius: 6,
-          }}
-        >
-          <p><b>Rp {w.amount.toLocaleString("id-ID")}</b></p>
-          <p>Metode: {w.method}</p>
-          <p>No: {w.account_number}</p>
-          <p>Status: <b>{w.status}</b></p>
-          <small>{new Date(w.created_at).toLocaleString("id-ID")}</small>
-        </div>
-      ))}
+      <div className="bg-white p-4 rounded-lg shadow space-y-2">
+        <h2 className="font-semibold">Riwayat</h2>
+        {loading ? (
+          <LoadingSkeleton rows={3} />
+        ) : history.length === 0 ? (
+          <div className="text-sm text-gray-600">Belum ada riwayat.</div>
+        ) : (
+          <ul className="space-y-2">
+            {history.map((item) => (
+              <li key={item.id} className="border p-3 rounded">
+                <div className="font-semibold">Rp {item.amount}</div>
+                <div className="text-xs text-gray-500">
+                  {item.method || item.destination_bank_ref}
+                </div>
+                <div className="text-xs">Status: {item.status}</div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
