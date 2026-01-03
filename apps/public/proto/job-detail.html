@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0B5ED7" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <title>Detail Pekerjaan - Assistenku</title>
+  <link rel="stylesheet" href="./assets/app.css" />
+</head>
+<body data-page="job-detail">
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">Assistenku Mitra</div>
+      <nav>
+        <a href="./dashboard.html">Dashboard</a>
+        <a href="./jobs.html">Pekerjaan</a>
+        <a href="./chat.html">Pesan</a>
+        <a href="./payout.html">Payout</a>
+        <a href="./profile.html">Profil</a>
+        <a href="./settings.html">Pengaturan</a>
+      </nav>
+      <div class="sidebar__links">
+        <a href="https://app.assistenku.com" target="_blank" rel="noopener">Customer</a>
+        <a href="https://admin.assistenku.com" target="_blank" rel="noopener">Admin</a>
+      </div>
+    </aside>
+
+    <div class="app-main">
+      <header class="topbar">
+        <div class="topbar__title">Detail Pekerjaan</div>
+        <div class="topbar__right">
+          <span class="pill">mitra.assistenku.com</span>
+          <button class="icon-btn" type="button" aria-label="Notifikasi">🔔</button>
+        </div>
+      </header>
+
+      <main class="content">
+        <div class="card" id="job-detail">
+          <h2>Detail</h2>
+          <p class="muted">Memuat detail pekerjaan...</p>
+        </div>
+
+        <div class="card">
+          <h2>Status</h2>
+          <div id="status-grid" class="status-grid"></div>
+        </div>
+
+        <div class="card">
+          <h2>Evidence</h2>
+          <p class="muted" id="evidence-note"></p>
+          <div class="form-grid">
+            <label class="label" for="evidence-file">Upload bukti</label>
+            <input id="evidence-file" type="file" />
+            <label class="label" for="evidence-notes">Catatan</label>
+            <textarea id="evidence-notes" rows="3" placeholder="Tuliskan catatan pekerjaan"></textarea>
+            <button class="btn" type="button">Submit Evidence (UI saja)</button>
+          </div>
+        </div>
+      </main>
+
+      <nav class="tabbar">
+        <a href="./dashboard.html">Dashboard</a>
+        <a href="./jobs.html">Jobs</a>
+        <a href="./chat.html">Chat</a>
+        <a href="./payout.html">Payout</a>
+        <a href="./profile.html">Profil</a>
+      </nav>
+    </div>
+  </div>
+  <script src="./assets/catalog.js"></script>
+  <script src="./assets/app.js"></script>
+</body>
+</html>
