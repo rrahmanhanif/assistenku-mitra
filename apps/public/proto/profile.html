@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0B5ED7" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <title>Profil Mitra - Assistenku</title>
+  <link rel="stylesheet" href="./assets/app.css" />
+</head>
+<body data-page="profile">
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">Assistenku Mitra</div>
+      <nav>
+        <a href="./dashboard.html">Dashboard</a>
+        <a href="./jobs.html">Pekerjaan</a>
+        <a href="./chat.html">Pesan</a>
+        <a href="./payout.html">Payout</a>
+        <a href="./profile.html">Profil</a>
+        <a href="./settings.html">Pengaturan</a>
+      </nav>
+      <div class="sidebar__links">
+        <a href="https://app.assistenku.com" target="_blank" rel="noopener">Customer</a>
+        <a href="https://admin.assistenku.com" target="_blank" rel="noopener">Admin</a>
+      </div>
+    </aside>
+
+    <div class="app-main">
+      <header class="topbar">
+        <div class="topbar__title">Profil</div>
+        <div class="topbar__right">
+          <span class="pill">mitra.assistenku.com</span>
+          <button class="icon-btn" type="button" aria-label="Notifikasi">🔔</button>
+        </div>
+      </header>
+
+      <main class="content">
+        <div class="card">
+          <h2>Data Mitra</h2>
+          <form id="profile-form" class="form-grid">
+            <label class="label" for="nama">Nama Lengkap</label>
+            <input id="nama" name="nama" type="text" placeholder="Nama sesuai KTP" />
+            <label class="label" for="hp">No HP</label>
+            <input id="hp" name="hp" type="tel" placeholder="08xxxxxxxx" />
+            <label class="label" for="ktp">No KTP</label>
+            <input id="ktp" name="ktp" type="text" placeholder="Nomor KTP" />
+            <label class="label" for="area">Area kerja</label>
+            <input id="area" name="area" type="text" placeholder="Kota / Kecamatan" />
+            <label class="label" for="skills">Skill layanan</label>
+            <textarea id="skills" name="skills" rows="3" placeholder="Pisahkan dengan koma"></textarea>
+            <button class="btn" type="submit">Simpan (local)</button>
+            <div class="muted" id="profile-saved"></div>
+          </form>
+        </div>
+
+        <div class="card">
+          <h2>Referensi Layanan</h2>
+          <div id="catalog" class="catalog-grid"></div>
+          <div class="muted" style="margin-top:12px;">
+            Catatan: Admin cut 10–20%, Mitra 80–90%. Ada komponen surge/lembur/gateway/pajak (tanpa hitung otomatis).
+          </div>
+        </div>
+      </main>
+
+      <nav class="tabbar">
+        <a href="./dashboard.html">Dashboard</a>
+        <a href="./jobs.html">Jobs</a>
+        <a href="./chat.html">Chat</a>
+        <a href="./payout.html">Payout</a>
+        <a href="./profile.html">Profil</a>
+      </nav>
+    </div>
+  </div>
+  <script src="./assets/catalog.js"></script>
+  <script src="./assets/app.js"></script>
+</body>
+</html>
