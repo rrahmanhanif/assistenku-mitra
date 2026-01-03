@@ -1,0 +1,17 @@
+{
+  "name": "Assistenku Mitra Proto",
+  "short_name": "Mitra Proto",
+  "start_url": "/proto/index.html",
+  "scope": "/proto/",
+  "display": "standalone",
+  "theme_color": "#0B5ED7",
+  "background_color": "#0B5ED7",
+  "icons": [
+    {
+      "src": "/proto/assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
