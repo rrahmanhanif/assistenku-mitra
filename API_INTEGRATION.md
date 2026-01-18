@@ -46,15 +46,6 @@ Jangan menambah serverless functions di repo ini.
 Endpoint yang dipakai UI Mitra sudah terdaftar di src/services/http/endpoints.js.
 
 markdown
-Salin kode
-
-**Cara pakai:**
-1. Buat file `API_INTEGRATION.md`
-2. Paste isi di atas
-3. Commit & push
-
-Kalau mau, saya bisa buatkan **versi khusus Admin & Customer** agar semua repo punya standar dokumentasi yang sama.
-
 
 
 
