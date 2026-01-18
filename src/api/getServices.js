@@ -1,17 +1,8 @@
-// src/api/getServices.js
-import { gatewayFetch } from "../core/gateway";
+import { endpoints } from "../services/http/endpoints";
+import { httpClient } from "../services/http/httpClient";
 
-export async function getServices(userContext) {
-  const endpoint = "/api/services/list";
-
-  const req = await gatewayFetch(endpoint, {
-    baseUrl: import.meta.env.VITE_ADMIN_URL,
-    userId: userContext?.userId,
-  });
-
-  const res = await req.json();
-
-  if (!res.success) return [];
-
-  return res.services;
+export async function getServices() {
+  const res = await httpClient.get(endpoints.services.list);
+  if (!res) return [];
+  return res.services || res.data || res.items || [];
 }
