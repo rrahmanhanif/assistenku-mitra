@@ -1,16 +1,17 @@
-import { apiClient } from "./apiClient";
+import { endpoints } from "../services/http/endpoints";
+import { httpClient } from "../services/http/httpClient";
 
 export async function fetchPayoutSummary() {
-  return apiClient.get("/api/payouts/summary");
+  return httpClient.get(endpoints.payouts.summary);
 }
 
 export async function requestPayout({ amount, destination }) {
-  return apiClient.post("/api/payouts/request", {
+  return httpClient.post(endpoints.payouts.request, {
     amount,
     destination_bank_ref: destination,
   });
 }
 
 export async function listPayouts() {
-  return apiClient.get("/api/payouts/list");
+  return httpClient.get(endpoints.payouts.list);
 }
