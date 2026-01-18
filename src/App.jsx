@@ -5,7 +5,7 @@ import supabase from "./lib/supabaseClient";
 import { runDeviceFraudChecks } from "./lib/fraudSignals";
 
 // Pages
-import Dashboard from "./pages/Dashboard";
+import DashboardMitra from "./pages/DashboardMitra";
 import OrderDetail from "./pages/OrderDetail";
 import Chat from "./pages/Chat";
 import History from "./pages/History";
@@ -32,57 +32,17 @@ export default function App() {
   };
 
   // =====================================
-  // DEVICE LOCK — MITRA
+  // START LIVE GPS (MITRA)
   // =====================================
   useEffect(() => {
-    async function checkDevice() {
-      const deviceLocal = localStorage.getItem("device_id");
+    if (!locationConsent) return;
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) return; // belum login
-
-      const mitraId = user.id;
-
-      const { data, error } = await supabase
-        .from("mitra_profiles")
-        .select("device_id")
-        .eq("id", mitraId)
-        .single();
-
-      if (error) {
-        console.error("Device check error:", error);
-        return;
-      }
-
-      if (data && data.device_id && deviceLocal && data.device_id !== deviceLocal) {
-        alert("Akun anda digunakan di perangkat lain!");
-        await supabase.auth.signOut();
-        localStorage.clear();
-        window.location.href = "/login";
-      }
-    }
-
-    checkDevice();
-  }, []);
-
-  // =====================================
-  // AUTO UPDATE GPS MITRA (hanya jika consent)
-  // =====================================
-  useEffect(() => {
-    async function startGPS() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user || !locationConsent) return;
-
-      startMitraGPS(user.id);
-    }
-
-    startGPS();
+    const stop = startMitraGPS?.();
+    return () => {
+      try {
+        if (typeof stop === "function") stop();
+      } catch (_) {}
+    };
   }, [locationConsent]);
 
   // =====================================
@@ -108,7 +68,7 @@ export default function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Dashboard />} />
+        <Route path="/" element={<DashboardMitra />} />
         <Route path="/order/:id" element={<OrderDetail />} />
         <Route path="/chat/:orderId" element={<Chat />} />
         <Route path="/history" element={<History />} />
