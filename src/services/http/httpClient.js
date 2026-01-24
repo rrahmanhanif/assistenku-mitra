@@ -10,17 +10,25 @@ function parseJsonSafely(text) {
   }
 }
 
-function buildErrorMessage({ status, statusText, payload }) {
+function buildErrorMessage({ status, statusText, payload, requestId }) {
   if (payload && typeof payload === "object") {
     const detail = payload.message || payload.error || payload.detail;
-    if (detail) return `${detail} (HTTP ${status})`;
+    if (detail) {
+      return `${detail} (HTTP ${status}${
+        requestId ? `, request_id: ${requestId}` : ""
+      })`;
+    }
   }
 
   if (typeof payload === "string" && payload.trim()) {
-    return `${payload} (HTTP ${status})`;
+    return `${payload} (HTTP ${status}${
+      requestId ? `, request_id: ${requestId}` : ""
+    })`;
   }
 
-  return `${statusText || "Permintaan gagal"} (HTTP ${status})`;
+  return `${statusText || "Permintaan gagal"} (HTTP ${status}${
+    requestId ? `, request_id: ${requestId}` : ""
+  })`;
 }
 
 async function request(
@@ -31,9 +39,7 @@ async function request(
     throw new Error("VITE_API_BASE_URL belum di-set.");
   }
 
-  const finalHeaders = {
-    ...headers,
-  };
+  const finalHeaders = { ...headers };
 
   if (!(body instanceof FormData)) {
     finalHeaders["Content-Type"] = "application/json";
@@ -59,11 +65,20 @@ async function request(
   const payload = parseJsonSafely(text);
 
   if (!res.ok) {
+    const requestId =
+      (payload &&
+        typeof payload === "object" &&
+        (payload.request_id || payload.requestId)) ||
+      res.headers.get("x-request-id") ||
+      res.headers.get("x-requestid") ||
+      null;
+
     throw new Error(
       buildErrorMessage({
         status: res.status,
         statusText: res.statusText,
         payload,
+        requestId,
       })
     );
   }
