@@ -5,6 +5,10 @@ export const endpoints = {
 
   mitra: {
     worklogs: "/api/mitra/worklogs",
+    orders: "/api/mitra/orders",
+    acceptOrder: (orderId) => `/api/mitra/orders/${orderId}/accept`,
+    startOrder: (orderId) => `/api/mitra/orders/${orderId}/start`,
+    finishOrder: (orderId) => `/api/mitra/orders/${orderId}/finish`,
   },
 
   orders: {
@@ -14,10 +18,8 @@ export const endpoints = {
     checkin: "/api/orders/checkin",
     complete: "/api/orders/complete",
     evidenceUpload: "/api/evidence/upload",
-    evidenceCommit: (orderId) =>
-      `/api/orders/${orderId}/evidence/commit`,
-    evidenceList: (orderId) =>
-      `/api/orders/${orderId}/evidence`,
+    evidenceCommit: (orderId) => `/api/orders/${orderId}/evidence/commit`,
+    evidenceList: (orderId) => `/api/orders/${orderId}/evidence`,
   },
 
   payouts: {
