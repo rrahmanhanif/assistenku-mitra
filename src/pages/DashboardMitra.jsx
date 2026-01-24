@@ -1,68 +1,118 @@
-import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchWhoami } from "../api/auth";
-import { fetchMitraWorklogs } from "../api/mitra";
-import { listAssignedOrders } from "../api/orders";
-import { JobCard } from "../components/JobCard";
+import {
+  acceptMitraOrder,
+  finishMitraOrder,
+  listMitraOrders,
+  startMitraOrder,
+} from "../api/mitraOrders";
 import { ErrorBanner } from "../components/ErrorBanner";
 import { LoadingSkeleton } from "../components/LoadingSkeleton";
+import { MitraOrderCard } from "../components/MitraOrderCard";
 
 export default function DashboardMitra() {
   const [orders, setOrders] = useState([]);
   const [profile, setProfile] = useState(null);
-  const [worklogs, setWorklogs] = useState([]);
   const [error, setError] = useState("");
   const [whoamiError, setWhoamiError] = useState("");
-  const [worklogsError, setWorklogsError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState({});
+
+  const loadOrders = useCallback(async () => {
+    const result = await listMitraOrders();
+    setOrders(Array.isArray(result) ? result : []);
+  }, []);
+
+  const loadWhoami = useCallback(async () => {
+    const who = await fetchWhoami();
+    setProfile(who);
+
+    const roles = who?.roles || who?.role || who?.user?.roles;
+    const hasMitraRole = Array.isArray(roles) ? roles.includes("MITRA") : roles === "MITRA";
+    if (!hasMitraRole) setWhoamiError("Akses ditolak: akun bukan MITRA.");
+  }, []);
 
   useEffect(() => {
-    async function loadData() {
+    let alive = true;
+
+    (async () => {
       try {
         setLoading(true);
         setError("");
         setWhoamiError("");
-        setWorklogsError("");
 
-        const [whoamiResult, ordersResult, worklogsResult] = await Promise.allSettled([
-          fetchWhoami(),
-          listAssignedOrders(),
-          fetchMitraWorklogs(),
-        ]);
+        const [whoRes, orderRes] = await Promise.allSettled([loadWhoami(), loadOrders()]);
+        if (!alive) return;
 
-        if (whoamiResult.status === "fulfilled") {
-          setProfile(whoamiResult.value);
-        } else {
-          setWhoamiError(
-            `FEATURE NOT READY: ${whoamiResult.reason?.message || "Error"}`
-          );
+        if (whoRes.status !== "fulfilled") {
+          setWhoamiError(whoRes.reason?.message || "Gagal memuat profil.");
         }
-
-        if (ordersResult.status === "fulfilled") {
-          setOrders(ordersResult.value || []);
-        } else {
-          setError(ordersResult.reason?.message || "Gagal memuat order.");
-        }
-
-        if (worklogsResult.status === "fulfilled") {
-          setWorklogs(worklogsResult.value || []);
-        } else {
-          setWorklogsError(
-            `FEATURE NOT READY: ${worklogsResult.reason?.message || "Error"}`
-          );
+        if (orderRes.status !== "fulfilled") {
+          setError(orderRes.reason?.message || "Gagal memuat order.");
         }
       } finally {
-        setLoading(false);
+        if (alive) setLoading(false);
       }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [loadOrders, loadWhoami]);
+
+  const paidOrders = useMemo(() => {
+    return orders.filter((order) => {
+      const paymentStatus =
+        order.payment_status || order.status_payment || order.payment?.status;
+      const normalized = paymentStatus ? String(paymentStatus).toUpperCase() : "";
+      const isPaid =
+        order.is_paid === true ||
+        order.paid === true ||
+        ["PAID", "SETTLED"].includes(normalized);
+      return isPaid;
+    });
+  }, [orders]);
+
+  const formatSchedule = (order) => {
+    const raw =
+      order.schedule_time ||
+      order.scheduled_at ||
+      order.schedule_at ||
+      order.pickup_time;
+    if (!raw) return "-";
+    const d = new Date(raw);
+    return Number.isNaN(d.getTime()) ? String(raw) : d.toLocaleString("id-ID");
+  };
+
+  const getTotalAmount = (order) =>
+    Number(
+      order.total_amount ||
+        order.amount ||
+        order.total_price ||
+        order.harga ||
+        order.total ||
+        0
+    );
+
+  const formatCurrency = (value) => `Rp ${Number(value || 0).toLocaleString("id-ID")}`;
+
+  const getMitraAmount = (order) => Number(order.mitra_amount || getTotalAmount(order) * 0.9);
+
+  const getPayoutStatus = (order) =>
+    order.payout_status || order.payout?.status || order.payoutStatus || "-";
+
+  const handleAction = async (orderId, action, handler) => {
+    setActionLoading((prev) => ({ ...prev, [orderId]: action }));
+    setError("");
+    try {
+      await handler(orderId);
+      await loadOrders();
+    } catch (err) {
+      setError(err?.message || "Gagal memproses order.");
+    } finally {
+      setActionLoading((prev) => ({ ...prev, [orderId]: "" }));
     }
-
-    loadData();
-  }, []);
-
-  const activeOrders = orders.filter((order) =>
-    ["ASSIGNED", "IN_PROGRESS", "MITRA_ON_ROUTE"].includes(order.status)
-  );
-  const completedOrders = orders.filter((order) => order.status === "COMPLETED");
+  };
 
   return (
     <div className="p-5 space-y-4">
@@ -96,81 +146,29 @@ export default function DashboardMitra() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-white p-4 rounded-lg shadow">
-          <h2 className="text-xl font-semibold mb-3">Job Aktif</h2>
-          {loading ? (
-            <LoadingSkeleton rows={3} />
-          ) : activeOrders.length === 0 ? (
-            <p className="text-gray-500">Tidak ada job aktif.</p>
-          ) : (
-            <div className="space-y-2">
-              {activeOrders.map((order) => (
-                <JobCard key={order.id} order={order} />
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="bg-white p-4 rounded-lg shadow">
-          <h2 className="text-xl font-semibold mb-3">Job Selesai</h2>
-          {loading ? (
-            <LoadingSkeleton rows={3} />
-          ) : completedOrders.length === 0 ? (
-            <p className="text-gray-500">Belum ada job selesai.</p>
-          ) : (
-            <div className="space-y-2">
-              {completedOrders.map((order) => (
-                <JobCard key={order.id} order={order} />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
       <div className="bg-white p-4 rounded-lg shadow">
-        <h2 className="text-xl font-semibold mb-3">Quick Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Link to="/earnings" className="border rounded-lg p-3 text-center hover:shadow">
-            Earnings
-          </Link>
-          <Link to="/withdraw" className="border rounded-lg p-3 text-center hover:shadow">
-            Withdraw
-          </Link>
-          <Link to="/help" className="border rounded-lg p-3 text-center hover:shadow">
-            Help
-          </Link>
-          <Link to="/order" className="border rounded-lg p-3 text-center hover:shadow">
-            Lihat Job
-          </Link>
-        </div>
-      </div>
+        <h2 className="text-xl font-semibold mb-3">Order PAID</h2>
 
-      <div className="bg-white p-4 rounded-lg shadow">
-        <h2 className="text-xl font-semibold mb-3">Worklogs Mitra</h2>
-
-        {worklogsError ? (
-          <p className="text-sm text-red-600">{worklogsError}</p>
-        ) : loading ? (
+        {loading ? (
           <LoadingSkeleton rows={3} />
-        ) : worklogs.length === 0 ? (
-          <p className="text-gray-500">Belum ada worklog.</p>
+        ) : paidOrders.length === 0 ? (
+          <p className="text-gray-500">Belum ada order PAID.</p>
         ) : (
-          <ul className="space-y-2 text-sm text-gray-700">
-            {worklogs.map((log, index) => (
-              <li key={log.id || log.uuid || `${log.created_at}-${index}`}>
-                <div className="font-semibold">
-                  {log.title || log.activity || "Worklog"}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {log.created_at
-                    ? new Date(log.created_at).toLocaleString("id-ID")
-                    : "Waktu tidak tersedia"}
-                </div>
-                {log.notes && <div className="text-xs text-gray-600">{log.notes}</div>}
-              </li>
+          <div className="space-y-3">
+            {paidOrders.map((order) => (
+              <MitraOrderCard
+                key={order.id}
+                order={order}
+                formattedSchedule={formatSchedule(order)}
+                formattedAmount={formatCurrency(getMitraAmount(order))}
+                payoutStatus={getPayoutStatus(order)}
+                loadingAction={actionLoading[order.id]}
+                onAccept={() => handleAction(order.id, "accept", acceptMitraOrder)}
+                onStart={() => handleAction(order.id, "start", startMitraOrder)}
+                onFinish={() => handleAction(order.id, "finish", finishMitraOrder)}
+              />
             ))}
-          </ul>
+          </div>
         )}
       </div>
     </div>
