@@ -1,20 +1,15 @@
-import { supabase } from "../../lib/supabase";
+import { request } from "../../shared/httpClient";
 
 export async function getMitraRatings() {
-  const { data: userData } = await supabase.auth.getUser();
-  const mitraId = userData.user.id;
+  const whoami = await request("/api/auth/whoami");
+  const mitraId =
+    whoami?.data?.id || whoami?.data?.user_id || whoami?.data?.mitra_id;
 
-  const { data, error } = await supabase
-    .from("ratings")
-    .select(`
-      id,
-      rating,
-      review,
-      order_id
-    `)
-    .eq("mitra_id", mitraId)
-    .order("created_at", { ascending: false });
+  if (!mitraId) {
+    throw new Error("Mitra ID tidak ditemukan. Silakan login ulang.");
+  }
 
-  if (error) throw error;
-  return data;
+  const response = await request(`/api/mitra/ratings?mitra_id=${mitraId}`);
+  const data = response?.data?.ratings ?? response?.data ?? [];
+  return Array.isArray(data) ? data : [];
 }
