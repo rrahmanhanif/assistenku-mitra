@@ -1,50 +1,15 @@
-const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
-const MAX_REQUESTS_PER_WINDOW = 60; // per identity
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const MAX_REQUESTS_PER_WINDOW = 60;
+
 const clientBuckets = new Map();
 
-const CACHE_KEY = "gateway_client_identity";
-const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
-
-function getCachedIdentity() {
-  const cached = localStorage.getItem(CACHE_KEY);
-  if (!cached) return null;
-
-  try {
-    const parsed = JSON.parse(cached);
-    if (Date.now() - parsed.cachedAt < CACHE_TTL_MS) {
-      return parsed.value;
-    }
-  } catch {
-    return null;
-  }
-
-  return null;
-}
-
 async function resolveClientIp() {
-  const cached = getCachedIdentity();
-  if (cached) return cached;
-
   try {
     const res = await fetch("https://api.ipify.org?format=json");
-    const { ip } = await res.json();
-
-    localStorage.setItem(
-      CACHE_KEY,
-      JSON.stringify({ value: ip, cachedAt: Date.now() })
-    );
-
-    return ip;
+    const json = await res.json();
+    return json.ip || "unknown";
   } catch {
-    // Fallback: identitas berbasis device
-    const fallback = `device-${btoa(navigator.userAgent).slice(0, 8)}`;
-
-    localStorage.setItem(
-      CACHE_KEY,
-      JSON.stringify({ value: fallback, cachedAt: Date.now() })
-    );
-
-    return fallback;
+    return "unknown";
   }
 }
 
@@ -70,7 +35,7 @@ export async function gatewayFetch(path, options = {}) {
   const {
     userId,
     ipOverride,
-    baseUrl = import.meta.env.VITE_GATEWAY_URL,
+    baseUrl = import.meta.env.VITE_API_BASE_URL,
     ...fetchOptions
   } = options;
 
