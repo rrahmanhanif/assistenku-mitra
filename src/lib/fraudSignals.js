@@ -1,5 +1,5 @@
 // src/lib/fraudSignals.js
-import supabase from "./supabaseClient";
+import { request } from "../shared/httpClient";
 
 const ROOT_INDICATORS = [
   "magisk",
@@ -28,11 +28,14 @@ function getRootIndicators() {
 
 export async function reportFraudSignal(mitraId, category, detail) {
   try {
-    await supabase.from("fraud_signals").insert({
-      mitra_id: mitraId,
-      category,
-      detail,
-      captured_at: new Date().toISOString(),
+    await request("/api/mitra/fraud-signals", {
+      method: "POST",
+      body: {
+        mitra_id: mitraId,
+        category,
+        detail,
+        captured_at: new Date().toISOString(),
+      },
     });
   } catch (error) {
     console.error("Failed to persist fraud signal", error);
@@ -59,31 +62,10 @@ export function detectMockLocation(currentPosition, previousPosition) {
     currentPosition.mocked === true ||
     currentPosition.coords?.mocked === true;
 
-  let unrealisticJump = false;
-
-  if (previousPosition?.coords) {
-    const prev = previousPosition.coords;
-
-    const distance = Math.sqrt(
-      Math.pow(currentPosition.coords.latitude - prev.latitude, 2) +
-        Math.pow(currentPosition.coords.longitude - prev.longitude, 2)
-    );
-
-    const secondsBetween =
-      (currentPosition.timestamp - previousPosition.timestamp) / 1000 || 1;
-
-    const speedKmH = (distance / secondsBetween) * 111 * 3.6;
-    unrealisticJump = speedKmH > 200 || speedKmH < 0;
-  }
-
-  const suspicious = accuracyTooLow || mockedFlag || unrealisticJump;
-
   return {
-    suspicious,
-    accuracyTooLow,
-    mockedFlag,
-    unrealisticJump,
-    rawAccuracy: accuracy,
-    rawSpeed: speed,
+    suspicious: Boolean(mockedFlag || accuracyTooLow),
+    accuracy,
+    speed,
+    mocked: mockedFlag,
   };
 }
