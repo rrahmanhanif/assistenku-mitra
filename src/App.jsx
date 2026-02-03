@@ -1,8 +1,8 @@
 // src/App.jsx
 import React, { useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import supabase from "./lib/supabaseClient";
 import { runDeviceFraudChecks } from "./lib/fraudSignals";
+import { request } from "./shared/httpClient";
 
 // Pages
 import DashboardMitra from "./pages/DashboardMitra";
@@ -13,17 +13,25 @@ import Rating from "./pages/Rating";
 import Withdraw from "./pages/Withdraw";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
+import MitraLogin from "./pages/MitraLogin";
+import MitraRegister from "./pages/MitraRegister";
+import MitraForgotPassword from "./pages/MitraForgotPassword";
+import MitraResetPassword from "./pages/MitraResetPassword";
 
 // Modules
 import { startMitraGPS } from "./modules/liveLocation";
 import LocationRationaleDialog from "./components/LocationRationaleDialog";
-import { hasLocationConsent, recordLocationConsent } from "./modules/locationConsent";
+import {
+  hasLocationConsent,
+  recordLocationConsent,
+} from "./modules/locationConsent";
 
 export default function App() {
   const [locationConsent, setLocationConsent] = useState(hasLocationConsent());
   const [showLocationRationale, setShowLocationRationale] = useState(
     !hasLocationConsent()
   );
+  const [authChecked, setAuthChecked] = useState(false);
 
   const handleApproveLocation = () => {
     recordLocationConsent();
@@ -46,28 +54,59 @@ export default function App() {
   }, [locationConsent]);
 
   // =====================================
-  // FRAUD SIGNALS — ROOT/JAILBREAK
+  // AUTH GATE + FRAUD SIGNALS
   // =====================================
   useEffect(() => {
-    async function checkFraudSignals() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+    let active = true;
 
-      if (!user) return;
+    async function checkAuthAndFraud() {
+      try {
+        const response = await request("/api/auth/whoami");
+        const profile = response.data || {};
+        const roles = profile.roles || profile.role || profile.user?.roles;
 
-      runDeviceFraudChecks(user.id);
+        const hasMitraRole = Array.isArray(roles)
+          ? roles.includes("MITRA")
+          : roles === "MITRA";
+
+        if (!hasMitraRole) {
+          window.location.href = "/mitra-login";
+          return;
+        }
+
+        if (profile.id) {
+          runDeviceFraudChecks(profile.id);
+        }
+      } catch (_) {
+        window.location.href = "/mitra-login";
+        return;
+      } finally {
+        if (active) setAuthChecked(true);
+      }
     }
 
-    checkFraudSignals();
+    checkAuthAndFraud();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   // =====================================
   // ROUTES MITRA
   // =====================================
+  if (!authChecked) {
+    return <div className="p-5 text-sm text-slate-500">Memuat sesi...</div>;
+  }
+
   return (
     <Router>
       <Routes>
+        <Route path="/mitra-login" element={<MitraLogin />} />
+        <Route path="/mitra-register" element={<MitraRegister />} />
+        <Route path="/mitra-forgot" element={<MitraForgotPassword />} />
+        <Route path="/mitra-reset" element={<MitraResetPassword />} />
+
         <Route path="/" element={<DashboardMitra />} />
         <Route path="/order/:id" element={<OrderDetail />} />
         <Route path="/chat/:orderId" element={<Chat />} />
