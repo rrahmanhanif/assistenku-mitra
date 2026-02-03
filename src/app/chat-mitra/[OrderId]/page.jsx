@@ -1,5 +1,6 @@
-// src/app/chat-mitra/[orderId]/page.jsx
+// src/app/chat-mitra/[OrderId]/page.jsx
 "use client";
+
 import { useState, useEffect } from "react";
 import { sendMessage, subscribeChat } from "@/lib/chatMitra";
 
@@ -12,7 +13,10 @@ export default function MitraChat({ params }) {
     const sub = subscribeChat(orderId, (msg) =>
       setMessages((prev) => [...prev, msg])
     );
-    return () => supabase.removeChannel(sub);
+
+    return () => {
+      if (sub?.unsubscribe) sub.unsubscribe();
+    };
   }, [orderId]);
 
   const handleSend = async () => {
@@ -49,4 +53,4 @@ export default function MitraChat({ params }) {
       </div>
     </div>
   );
-          }
+}
