@@ -1,4 +1,4 @@
-import { supabase } from "../../lib/supabase";
+import { request } from "../../shared/httpClient";
 
 export async function submitCustomerRating({
   orderId,
@@ -11,12 +11,13 @@ export async function submitCustomerRating({
   rating: number;
   review?: string;
 }) {
-  const { error } = await supabase.from("ratings").insert({
-    order_id: orderId,
-    mitra_id: mitraId,
-    rating,
-    review,
+  await request("/api/ratings", {
+    method: "POST",
+    body: {
+      order_id: orderId,
+      mitra_id: mitraId,
+      rating,
+      review,
+    },
   });
-
-  if (error) throw error;
 }
