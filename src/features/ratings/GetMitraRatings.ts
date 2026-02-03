@@ -1,11 +1,7 @@
-import { supabase } from "../../lib/supabase";
+import { request } from "../../shared/httpClient";
 
 export async function getMitraRatings() {
-  const { data, error } = await supabase
-    .from("ratings")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  if (error) throw error;
-  return data;
+  const response = await request("/api/mitra/ratings");
+  const data = response?.data?.ratings ?? response?.data ?? [];
+  return Array.isArray(data) ? data : [];
 }
