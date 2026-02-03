@@ -6,20 +6,17 @@ const ACTION_LABELS = {
   finish: "Finish",
 };
 
+function formatCurrency(amount, currency = "IDR") {
+  if (amount == null) return "-";
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(Number(amount) || 0);
+}
+
 function normalizeStatus(status) {
   return (status || "").toUpperCase();
-}
-
-function canAccept(status) {
-  return ["PAID", "READY", "ASSIGNED", "PENDING"].includes(status);
-}
-
-function canStart(status) {
-  return ["ACCEPTED", "MITRA_ON_ROUTE", "ON_ROUTE", "READY_TO_START"].includes(status);
-}
-
-function canFinish(status) {
-  return ["IN_PROGRESS", "STARTED", "ONGOING", "ON_SITE"].includes(status);
 }
 
 export function MitraOrderCard({
@@ -28,40 +25,54 @@ export function MitraOrderCard({
   onStart,
   onFinish,
   loadingAction,
-  formattedSchedule = "-",
-  formattedAmount = "-",
-  payoutStatus = "-",
 }) {
   const safeOrder = order || {};
-  const status = normalizeStatus(safeOrder.status);
+  const status = normalizeStatus(safeOrder.status_order || safeOrder.status);
+  const payoutStatus = safeOrder.payout_status || "-";
+
   const isCompleted = status.includes("COMPLETED") || status.includes("FINISH");
-  const allowAccept = canAccept(status) || (!isCompleted && !status);
-  const allowStart = canStart(status);
-  const allowFinish = canFinish(status);
+
+  // State machine (strict)
+  const allowAccept = status === "PAID";
+  const allowStart = status === "ASSIGNED";
+  const allowFinish = status === "ONGOING";
+
+  const money = safeOrder.money || {};
+  const totalGross = money.total_gross_amount ?? 0;
+  const mitraShare = money.mitra_share_amount ?? 0;
+  const currency = money.currency || "IDR";
 
   return (
     <div className="border rounded-lg p-4 shadow-sm bg-white space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-gray-500">
-          {safeOrder.service_name || safeOrder.service_type || safeOrder.layanan || "-"}
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-sm text-gray-700 font-semibold">
+          {safeOrder.service?.name || safeOrder.service_name || "-"} · Qty{" "}
+          {safeOrder.qty ?? "-"}
         </div>
-        <StatusChip status={safeOrder.status} />
+
+        <div className="flex gap-2">
+          <StatusChip status={safeOrder.status_order || safeOrder.status} />
+          <StatusChip status={payoutStatus} />
+        </div>
       </div>
 
       <div className="space-y-1">
-        <div className="font-semibold text-gray-800">
-          {safeOrder.address_short ||
-            safeOrder.address ||
-            safeOrder.alamat ||
-            safeOrder.lokasi_jemput ||
-            "-"}
-        </div>
-        <div className="text-xs text-gray-500">Jadwal: {formattedSchedule}</div>
         <div className="text-xs text-gray-500">
-          Mitra Amount (90%): <span className="font-semibold">{formattedAmount}</span>
+          Customer: {safeOrder.customer?.name || "-"}
         </div>
+
         <div className="text-xs text-gray-500">
-          Payout Status: <span className="font-semibold">{payoutStatus}</span>
+          Total:{" "}
+          <span className="font-semibold">
+            {formatCurrency(totalGross, currency)}
+          </span>
+        </div>
+
+        <div className="text-xs text-gray-500">
+          Mitra:{" "}
+          <span className="font-semibold">
+            {formatCurrency(mitraShare, currency)}
+          </span>
         </div>
       </div>
 
