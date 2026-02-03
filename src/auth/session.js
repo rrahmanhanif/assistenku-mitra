@@ -1,16 +1,18 @@
-import { supabase } from "../lib/supabaseClient";
+import { request } from "../shared/httpClient";
 
 export async function getAccessToken() {
-  const { data, error } = await supabase.auth.getSession();
-  if (error) throw new Error(error.message || "Gagal mengambil sesi");
-  const token = data?.session?.access_token;
+  const token =
+    localStorage.getItem("access_token") ||
+    localStorage.getItem("mitra_token");
+
   if (!token) throw new Error("Sesi tidak ditemukan. Silakan login ulang.");
   return token;
 }
 
 export async function requireAuthenticatedUser() {
-  const { data, error } = await supabase.auth.getUser();
-  if (error) throw new Error(error.message || "Gagal memuat pengguna");
-  if (!data?.user) throw new Error("Pengguna belum login.");
-  return data.user;
+  const response = await request("/api/auth/whoami");
+  const profile = response?.data ?? response;
+
+  if (!profile) throw new Error("Pengguna belum login.");
+  return profile;
 }
