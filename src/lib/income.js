@@ -1,26 +1,23 @@
 // src/lib/income.js
-import { supabase } from "./supabase";
+import { request } from "../shared/httpClient";
 
 // Tambah pemasukan setelah order SELESAI
 export async function addIncome(mitraId, orderId, amount, description) {
-  const { data, error } = await supabase
-    .from("wallet_transactions")
-    .insert([
-      {
+  try {
+    const response = await request("/api/wallet/transactions", {
+      method: "POST",
+      body: {
         mitra_id: mitraId,
         order_id: orderId,
         jumlah: amount,
         tipe: "INCOME",
         description: description || "Pemasukan pesanan",
       },
-    ])
-    .select()
-    .single();
+    });
 
-  if (error) {
+    return response?.data ?? null;
+  } catch (error) {
     console.error("Error addIncome:", error);
     return null;
   }
-
-  return data;
 }
